@@ -363,7 +363,7 @@ function Dashboard({ usuario, nav, onObraClick }) {
 }
 
 // ─── TAREFAS ───────────────────────────────────────────────
-function Tarefas({ usuario }) {
+function Tarefas({ usuario, onVoltar }) {
   const [obras, setObras]     = useState([]);
   const [obraSel, setObraSel] = useState(null);
   const [tarefas, setTarefas] = useState([]);
@@ -412,7 +412,7 @@ function Tarefas({ usuario }) {
 
   return (
     <>
-      <Header titulo="Tarefas" subtitulo="✅ Módulo" acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>} />
+      <Header titulo="Tarefas" subtitulo="✅ Módulo" onVoltar={onVoltar} acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>} />
       <div style={{ padding:"16px 16px 100px" }}>
         {/* Seletor de obra */}
         <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:14 }}>
@@ -481,7 +481,7 @@ function Tarefas({ usuario }) {
 }
 
 // ─── ORÇAMENTOS ────────────────────────────────────────────
-function Orcamentos({ usuario }) {
+function Orcamentos({ usuario, onVoltar }) {
   const [orcs, setOrcs]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]     = useState(false);
@@ -534,6 +534,49 @@ function Orcamentos({ usuario }) {
       await supabase.from("orcamentos").update({ total_geral: total }).eq("id", detalhe.id);
       carregar();
     } finally { setSalvando(false); }
+  };
+
+  const gerarPDF = () => {
+    const total = itens.reduce((s, i) => s + (i.quantidade||0) * (i.valor_unitario||0), 0);
+    const fmt = (v) => Number(v||0).toLocaleString("pt-BR", { minimumFractionDigits:2 });
+    const linhas = itens.map(i => `
+      <tr>
+        <td>${i.descricao}</td>
+        <td style="text-align:center">${i.quantidade}</td>
+        <td style="text-align:center">${i.unidade}</td>
+        <td style="text-align:right">R$ ${fmt(i.valor_unitario)}</td>
+        <td style="text-align:right;font-weight:700">R$ ${fmt((i.quantidade||0)*(i.valor_unitario||0))}</td>
+      </tr>`).join("");
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+      <title>Orçamento — ${detalhe.cliente_nome}</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:40px;color:#1A1A1A;max-width:740px;margin:0 auto}
+        h1{color:#C77700;letter-spacing:4px;margin:0 0 4px}
+        .sub{font-size:12px;color:#8A8A8A;letter-spacing:2px;margin-bottom:28px}
+        .info{background:#F5F5F0;border-radius:8px;padding:16px;margin-bottom:24px;font-size:14px;line-height:1.8}
+        table{width:100%;border-collapse:collapse;margin-bottom:16px}
+        th{background:#FFF3DC;color:#C77700;padding:10px 12px;text-align:left;font-size:13px}
+        td{padding:10px 12px;border-bottom:1px solid #E0E0D8;font-size:13px}
+        .total{background:#FFF3DC;border-radius:8px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+        .total-label{font-size:14px;font-weight:700;color:#4A4A4A}
+        .total-val{font-size:24px;font-weight:900;color:#C77700}
+        @media print{@page{margin:20mm}}
+      </style></head><body>
+      <h1>OBRAFÁCIL</h1>
+      <div class="sub">ORÇAMENTO</div>
+      <div class="info">
+        <strong>Cliente:</strong> ${detalhe.cliente_nome}<br>
+        ${detalhe.cliente_telefone ? `<strong>Telefone:</strong> ${detalhe.cliente_telefone}<br>` : ""}
+        ${detalhe.endereco_obra ? `<strong>Endereço:</strong> ${detalhe.endereco_obra}<br>` : ""}
+        ${detalhe.descricao ? `<strong>Serviço:</strong> ${detalhe.descricao}` : ""}
+      </div>
+      <table><thead><tr><th>Item</th><th style="text-align:center">Qtd</th><th style="text-align:center">Unid</th><th style="text-align:right">Unit.</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>${linhas}</tbody></table>
+      <div class="total"><span class="total-label">TOTAL GERAL</span><span class="total-val">R$ ${fmt(total)}</span></div>
+      <script>window.onload=function(){window.print();}</script>
+      </body></html>`;
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); }
   };
 
   const ST = { rascunho:{ label:"Rascunho", cor:T.cinza3, fundo:"#F0F0F0" }, enviado:{ label:"Enviado", cor:T.azul, fundo:T.azulC }, aprovado:{ label:"Aprovado", cor:T.verde, fundo:T.verdeC }, recusado:{ label:"Recusado", cor:T.vermelho, fundo:T.vermelhoC }, aguardando:{ label:"Aguardando", cor:T.amarelo, fundo:T.amareloC } };
@@ -589,13 +632,17 @@ function Orcamentos({ usuario }) {
             );
           })}
         </div>
+
+        <button onClick={gerarPDF} style={{ marginTop:20, width:"100%", padding:"13px", border:`1.5px solid ${T.amarelo}`, borderRadius:12, background:T.amareloC, color:T.amarelo, fontSize:15, fontWeight:700, cursor:"pointer" }}>
+          🖨️ Gerar PDF / Imprimir
+        </button>
       </div>
     </>
   );
 
   return (
     <>
-      <Header titulo="Orçamentos" subtitulo="💰 Módulo" acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Novo</div>} />
+      <Header titulo="Orçamentos" subtitulo="💰 Módulo" onVoltar={onVoltar} acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Novo</div>} />
       <div style={{ padding:"16px 16px 100px" }}>
         <div style={{ background:T.verdeC, border:`1px solid ${T.verde}`, borderRadius:12, padding:"14px 16px", marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <span style={{ fontSize:13, color:T.verde, fontWeight:600 }}>💰 Total aprovado</span>
@@ -643,7 +690,7 @@ function Orcamentos({ usuario }) {
 }
 
 // ─── ESTOQUE ───────────────────────────────────────────────
-function Estoque({ usuario }) {
+function Estoque({ usuario, onVoltar }) {
   const [obras, setObras]     = useState([]);
   const [obraSel, setObraSel] = useState(null);
   const [itens, setItens]     = useState([]);
@@ -698,7 +745,7 @@ function Estoque({ usuario }) {
 
   return (
     <>
-      <Header titulo="Estoque" subtitulo="📦 Módulo" acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Item</div>} />
+      <Header titulo="Estoque" subtitulo="📦 Módulo" onVoltar={onVoltar} acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Item</div>} />
       <div style={{ padding:"16px 16px 100px" }}>
         <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:14 }}>
           {obras.map(o => (
@@ -788,21 +835,7 @@ function Estoque({ usuario }) {
 }
 
 // ─── PERFIL ────────────────────────────────────────────────
-function Perfil({ usuario, onLogout })// ============================================================
-// SUBSTITUI A FUNÇÃO Perfil NO src/app/index.tsx
-// ============================================================
-// Encontra:   function Perfil({ usuario, onLogout }) {
-// Substitui toda a função até o fechamento }
-// ============================================================
-
-function Perfil({ usuario, onLogout })// ============================================================
-// SUBSTITUI A FUNÇÃO Perfil NO src/app/index.tsx
-// ============================================================
-// Encontra:   function Perfil({ usuario, onLogout }) {
-// Substitui toda a função até o fechamento }
-// ============================================================
-
-function Perfil({ usuario, onLogout }) {
+function Perfil({ usuario, onLogout, onVoltar }) {
   const [tela, setTela]         = useState("menu"); // menu | editar | planos | notificacoes | ajuda | senha
   const [nome, setNome]         = useState(usuario.nome || "");
   const [telefone, setTelefone] = useState(usuario.telefone || "");
@@ -873,7 +906,7 @@ function Perfil({ usuario, onLogout }) {
   // ── MENU PRINCIPAL ────────────────────────────────────────
   if (tela === "menu") return (
     <>
-      <Header titulo="Perfil" subtitulo="👤 Conta" />
+      <Header titulo="Perfil" subtitulo="👤 Conta" onVoltar={onVoltar} />
       <div style={{ padding:"16px 16px 100px" }}>
 
         {/* Avatar e dados */}
@@ -1175,10 +1208,10 @@ export default function App() {
         ) : (
           <>
             {aba==="dashboard" && <Dashboard usuario={usuario} nav={setAba} onObraClick={setObraSel} />}
-            {aba==="tarefas"   && <Tarefas   usuario={usuario} />}
-            {aba==="orcamento" && <Orcamentos usuario={usuario} />}
-            {aba==="estoque"   && <Estoque   usuario={usuario} />}
-            {aba==="perfil"    && <Perfil    usuario={usuario} onLogout={handleLogout} />}
+            {aba==="tarefas"   && <Tarefas   usuario={usuario} onVoltar={() => setAba("dashboard")} />}
+            {aba==="orcamento" && <Orcamentos usuario={usuario} onVoltar={() => setAba("dashboard")} />}
+            {aba==="estoque"   && <Estoque   usuario={usuario} onVoltar={() => setAba("dashboard")} />}
+            {aba==="perfil"    && <Perfil    usuario={usuario} onLogout={handleLogout} onVoltar={() => setAba("dashboard")} />}
           </>
         )}
       </div>
