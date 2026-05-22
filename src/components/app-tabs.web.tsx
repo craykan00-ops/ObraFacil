@@ -7,7 +7,7 @@ export default function AppTabs() {
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
-        <View style={{ height: 0, overflow: 'hidden' }}>
+        <View style={{ height: 0, overflow: 'hidden' }} pointerEvents="none">
           <TabTrigger name="home" href="/" />
           <TabTrigger name="explore" href="/explore" />
         </View>
