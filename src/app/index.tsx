@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
 
-// ─── TEMA ─────────────────────────────────────────────────
 const T = {
   amarelo:    "#C77700",
   amareloC:   "#FFF3DC",
@@ -26,7 +25,7 @@ function Badge({ label, cor, fundo }) {
 function ProgBar({ valor, cor=T.amarelo }) {
   return (
     <div style={{ height:5, background:T.cinzaBorda, borderRadius:3, overflow:"hidden" }}>
-      <div style={{ height:"100%", width:`${valor}%`, background:cor, borderRadius:3, transition:"width 0.6s" }} />
+      <div style={{ height:"100%", width:`${Math.min(valor,100)}%`, background:cor, borderRadius:3, transition:"width 0.6s" }} />
     </div>
   );
 }
@@ -54,25 +53,20 @@ function Input({ label, type="text", value, onChange, placeholder, erro }) {
           onFocus={() => setFoco(true)} onBlur={() => setFoco(false)}
           style={{ flex:1, padding:"13px 14px", border:"none", outline:"none", fontSize:15, color:T.cinza1, background:"transparent", fontFamily:"inherit" }}
         />
-        {isSenha && (
-          <button type="button" onClick={() => setMostrar(p=>!p)} style={{ background:"none", border:"none", padding:"0 14px", cursor:"pointer", fontSize:16, color:T.cinza3 }}>
-            {mostrar ? "🙈" : "👁️"}
-          </button>
-        )}
+        {isSenha && <button type="button" onClick={() => setMostrar(p=>!p)} style={{ background:"none", border:"none", padding:"0 14px", cursor:"pointer", fontSize:16, color:T.cinza3 }}>{mostrar ? "🙈" : "👁️"}</button>}
       </div>
       {erro && <div style={{ fontSize:12, color:T.vermelho, marginTop:5 }}>⚠️ {erro}</div>}
     </div>
   );
 }
 
-function BtnPrimario({ children, onClick, loading, disabled, style={} }) {
+function Btn({ children, onClick, loading, disabled, cor=T.amarelo, ghost=false, style={} }) {
   return (
     <button onClick={onClick} disabled={disabled || loading} style={{
-      width:"100%", padding:"15px", border:"none", borderRadius:12,
-      background: disabled || loading ? T.cinzaBorda : T.amarelo,
-      color:"#fff", fontSize:16, fontWeight:700,
+      width:"100%", padding:"13px", border: ghost ? `1.5px solid ${cor}` : "none", borderRadius:12,
+      background: ghost ? "transparent" : (disabled || loading ? T.cinzaBorda : cor),
+      color: ghost ? cor : "#fff", fontSize:15, fontWeight:700,
       cursor: disabled || loading ? "default" : "pointer",
-      boxShadow: disabled || loading ? "none" : "0 4px 16px rgba(199,119,0,0.3)",
       transition:"all 0.2s", ...style,
     }}>
       {loading ? "⏳ Aguarde..." : children}
@@ -85,7 +79,7 @@ function Header({ titulo, subtitulo, onVoltar, acao }) {
     <div style={{ background:T.fundoCard, borderBottom:`1px solid ${T.cinzaBorda}`, padding:"44px 20px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", position:"sticky", top:0, zIndex:10 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          {onVoltar && <button onClick={onVoltar} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:T.cinza2, padding:"0 4px 0 0" }}>←</button>}
+          {onVoltar && <button onClick={onVoltar} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:T.cinza2 }}>←</button>}
           <div>
             {subtitulo && <div style={{ fontSize:11, color:T.cinza3, letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>{subtitulo}</div>}
             <div style={{ fontSize:19, fontWeight:800, color:T.cinza1 }}>{titulo}</div>
@@ -97,20 +91,18 @@ function Header({ titulo, subtitulo, onVoltar, acao }) {
   );
 }
 
-function BottomNav({ aba, setAba, alertas=0 }) {
-  const items = [
-    { id:"dashboard", emoji:"🏠", label:"Início"    },
-    { id:"tarefas",   emoji:"✅", label:"Tarefas"   },
-    { id:"orcamento", emoji:"💰", label:"Orçamento" },
-    { id:"estoque",   emoji:"📦", label:"Estoque",  badge:alertas },
-    { id:"perfil",    emoji:"👤", label:"Perfil"    },
-  ];
+function BottomNav({ aba, setAba }) {
   return (
     <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, background:T.fundoCard, borderTop:`1px solid ${T.cinzaBorda}`, display:"flex", padding:"10px 0 16px", boxShadow:"0 -4px 16px rgba(0,0,0,0.07)", zIndex:20 }}>
-      {items.map(item => (
-        <div key={item.id} onClick={() => setAba(item.id)} style={{ flex:1, textAlign:"center", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2, position:"relative" }}>
+      {[
+        { id:"dashboard", emoji:"🏠", label:"Início"    },
+        { id:"tarefas",   emoji:"✅", label:"Tarefas"   },
+        { id:"orcamento", emoji:"💰", label:"Orçamento" },
+        { id:"estoque",   emoji:"📦", label:"Estoque"   },
+        { id:"perfil",    emoji:"👤", label:"Perfil"    },
+      ].map(item => (
+        <div key={item.id} onClick={() => setAba(item.id)} style={{ flex:1, textAlign:"center", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
           <span style={{ fontSize:21 }}>{item.emoji}</span>
-          {item.badge > 0 && <div style={{ position:"absolute", top:-2, right:"18%", width:16, height:16, borderRadius:8, background:T.vermelho, fontSize:9, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", border:`2px solid ${T.fundoCard}` }}>{item.badge}</div>}
           <span style={{ fontSize:10, fontWeight: aba===item.id ? 700 : 500, color: aba===item.id ? T.amarelo : T.cinza3 }}>{item.label}</span>
           {aba===item.id && <div style={{ width:4, height:4, borderRadius:2, background:T.amarelo }} />}
         </div>
@@ -119,119 +111,136 @@ function BottomNav({ aba, setAba, alertas=0 }) {
   );
 }
 
-// ─── TELA LOGIN ────────────────────────────────────────────
-function TelaLogin({ onLogin, onIrCadastro }) {
-  const [email, setEmail]     = useState("");
-  const [senha, setSenha]     = useState("");
-  const [erro, setErro]       = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async () => {
-    if (!email || !senha) { setErro("Preencha todos os campos"); return; }
-    setErro(""); setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-      if (error) throw error;
-      onLogin();
-    } catch (e) {
-      setErro("E-mail ou senha incorretos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+function Modal({ titulo, onFechar, children }) {
   return (
-    <div style={{ minHeight:"100vh", background:T.fundo, display:"flex", flexDirection:"column", maxWidth:430, margin:"0 auto" }}>
-      <div style={{ background:T.fundoCard, padding:"48px 24px 24px", borderBottom:`1px solid ${T.cinzaBorda}`, textAlign:"center" }}>
-        <div style={{ fontWeight:900, fontSize:26, letterSpacing:4, color:T.cinza1, marginBottom:4 }}>OBRAFÁCIL</div>
-        <div style={{ fontSize:13, color:T.cinza3 }}>Entre na sua conta</div>
-      </div>
-      <div style={{ flex:1, padding:"32px 24px" }}>
-        <div style={{ fontSize:22, fontWeight:800, color:T.cinza1, marginBottom:6 }}>Bem-vindo de volta 👷</div>
-        <div style={{ fontSize:14, color:T.cinza3, marginBottom:28 }}>Entre para gerenciar suas obras</div>
-        <Input label="E-mail" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="seu@email.com" />
-        <Input label="Senha" type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="Sua senha" />
-        {erro && <div style={{ background:T.vermelhoC, color:T.vermelho, padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:16 }}>⚠️ {erro}</div>}
-        <BtnPrimario onClick={handleLogin} loading={loading} disabled={!email || !senha}>Entrar →</BtnPrimario>
-        <div style={{ textAlign:"center", marginTop:20, fontSize:14, color:T.cinza3 }}>
-          Não tem conta? <span onClick={onIrCadastro} style={{ color:T.amarelo, fontWeight:700, cursor:"pointer" }}>Criar grátis</span>
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:50, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ background:T.fundoCard, borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:430, maxHeight:"85vh", overflowY:"auto" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div style={{ fontSize:17, fontWeight:700, color:T.cinza1 }}>{titulo}</div>
+          <button onClick={onFechar} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:T.cinza3 }}>✕</button>
         </div>
+        {children}
       </div>
     </div>
   );
 }
 
-// ─── TELA CADASTRO ─────────────────────────────────────────
-function TelaCadastro({ onCadastrar, onIrLogin }) {
-  const [nome, setNome]       = useState("");
-  const [email, setEmail]     = useState("");
-  const [telefone, setTel]    = useState("");
-  const [senha, setSenha]     = useState("");
-  const [perfil, setPerfil]   = useState("mestre");
-  const [erro, setErro]       = useState("");
-  const [loading, setLoading] = useState(false);
+function moeda(v) { return "R$ " + Number(v||0).toLocaleString("pt-BR", { minimumFractionDigits:2 }); }
 
-  const handleCadastro = async () => {
-    if (!nome || !email || !senha) { setErro("Preencha todos os campos obrigatórios"); return; }
-    if (senha.length < 6) { setErro("Senha deve ter pelo menos 6 caracteres"); return; }
+// ─── AUTH ──────────────────────────────────────────────────
+function TelaAuth({ onLogin }) {
+  const [tela, setTela]   = useState("splash");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [nome, setNome]   = useState("");
+  const [tel, setTel]     = useState("");
+  const [perfil, setPerfil] = useState("mestre");
+  const [erro, setErro]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sucesso, setSucesso] = useState("");
+
+  const handleLogin = async () => {
     setErro(""); setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email, password: senha,
-        options: { data: { nome, telefone, perfil } }
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
       if (error) throw error;
-      if (data.user) {
-        await supabase.from("profiles").insert({ id: data.user.id, nome, telefone, perfil });
-      }
-      onCadastrar();
-    } catch (e) {
-      setErro(e.message || "Erro ao criar conta");
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setErro("E-mail ou senha incorretos"); }
+    finally { setLoading(false); }
   };
 
-  return (
-    <div style={{ minHeight:"100vh", background:T.fundo, display:"flex", flexDirection:"column", maxWidth:430, margin:"0 auto" }}>
-      <div style={{ background:T.fundoCard, padding:"48px 24px 20px", borderBottom:`1px solid ${T.cinzaBorda}` }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-          <button onClick={onIrLogin} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:T.cinza2 }}>←</button>
-          <div style={{ fontWeight:900, fontSize:20, letterSpacing:3, color:T.cinza1 }}>OBRAFÁCIL</div>
+  const handleCadastro = async () => {
+    if (!nome || !email || !senha) { setErro("Preencha todos os campos"); return; }
+    if (senha.length < 6) { setErro("Senha mínimo 6 caracteres"); return; }
+    setErro(""); setLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email, password: senha,
+        options: { data: { nome, telefone: tel, perfil } }
+      });
+      if (error) throw error;
+      setSucesso("Conta criada! Verifique seu e-mail para confirmar.");
+    } catch (e) { setErro(e.message || "Erro ao criar conta"); }
+    finally { setLoading(false); }
+  };
+
+  if (tela === "splash") return (
+    <div style={{ minHeight:"100vh", background:`linear-gradient(160deg,#1A1A1A 0%,#2D2008 100%)`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 32px", textAlign:"center", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      <div style={{ fontSize:52, marginBottom:16 }}>🏗️</div>
+      <div style={{ fontWeight:900, fontSize:34, letterSpacing:6, color:T.amarelo, marginBottom:4 }}>OBRAFÁCIL</div>
+      <div style={{ fontSize:13, color:"#666", letterSpacing:2, marginBottom:40 }}>CONTROLE DE OBRAS</div>
+      {[{ emoji:"✅", texto:"Checklist de tarefas para sua equipe" },{ emoji:"💰", texto:"Orçamentos profissionais em minutos" },{ emoji:"📦", texto:"Alertas de estoque antes de faltar" }].map((item,i) => (
+        <div key={i} style={{ display:"flex", alignItems:"center", gap:14, background:"rgba(255,255,255,0.05)", borderRadius:12, padding:"12px 16px", marginBottom:10, width:"100%", border:"1px solid rgba(255,255,255,0.08)", textAlign:"left" }}>
+          <span style={{ fontSize:20 }}>{item.emoji}</span>
+          <span style={{ fontSize:14, color:"#CCC", fontWeight:500 }}>{item.texto}</span>
         </div>
-        <div style={{ fontSize:13, color:T.cinza3 }}>Criar conta grátis</div>
+      ))}
+      <div style={{ width:"100%", marginTop:20 }}>
+        <button onClick={() => setTela("cadastro")} style={{ width:"100%", padding:"15px", border:"none", borderRadius:12, background:T.amarelo, color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", marginBottom:12, boxShadow:"0 4px 20px rgba(199,119,0,0.4)" }}>🚀 Criar conta grátis</button>
+        <button onClick={() => setTela("login")} style={{ width:"100%", padding:"15px", border:"1.5px solid rgba(255,255,255,0.2)", borderRadius:12, background:"transparent", color:"#DDD", fontSize:16, fontWeight:600, cursor:"pointer" }}>Já tenho conta — Entrar</button>
       </div>
-      <div style={{ flex:1, padding:"28px 24px" }}>
-        <Input label="Nome completo *" value={nome} onChange={e=>setNome(e.target.value)} placeholder="João da Silva" />
-        <Input label="E-mail *" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="seu@email.com" />
-        <Input label="Telefone / WhatsApp" value={telefone} onChange={e=>setTel(e.target.value)} placeholder="(11) 99999-0000" />
-        <Input label="Senha *" type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+    </div>
+  );
 
-        <div style={{ marginBottom:20 }}>
-          <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:10 }}>Você é:</div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-            {[
-              { id:"mestre",      emoji:"👑", label:"Mestre / Dono",  desc:"Gerencio obras e equipe"   },
-              { id:"funcionario", emoji:"👷", label:"Funcionário",     desc:"Recebo tarefas para fazer"  },
-            ].map(p => (
-              <button key={p.id} onClick={() => setPerfil(p.id)} style={{
-                padding:"14px 12px", border:`2px solid ${perfil===p.id ? T.amarelo : T.cinzaBorda}`,
-                borderRadius:12, background: perfil===p.id ? T.amareloC : T.fundoCard,
-                cursor:"pointer", textAlign:"left", transition:"all 0.2s",
-              }}>
-                <div style={{ fontSize:22, marginBottom:6 }}>{p.emoji}</div>
-                <div style={{ fontSize:13, fontWeight:700, color: perfil===p.id ? T.amarelo : T.cinza1 }}>{p.label}</div>
-                <div style={{ fontSize:11, color:T.cinza3, marginTop:3 }}>{p.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
+  if (tela === "login") return (
+    <div style={{ minHeight:"100vh", background:T.fundo, fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      <div style={{ background:T.fundoCard, padding:"48px 24px 24px", borderBottom:`1px solid ${T.cinzaBorda}`, textAlign:"center" }}>
+        <div style={{ fontWeight:900, fontSize:26, letterSpacing:4, color:T.cinza1, marginBottom:4 }}>OBRAFÁCIL</div>
+        <div style={{ fontSize:13, color:T.cinza3 }}>Entre na sua conta</div>
+      </div>
+      <div style={{ padding:"32px 24px" }}>
+        <div style={{ fontSize:22, fontWeight:800, color:T.cinza1, marginBottom:6 }}>Bem-vindo de volta 👷</div>
+        <div style={{ fontSize:14, color:T.cinza3, marginBottom:28 }}>Entre para gerenciar suas obras</div>
+        <Input label="E-mail" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="seu@email.com" />
+        <Input label="Senha" type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="Sua senha" />
         {erro && <div style={{ background:T.vermelhoC, color:T.vermelho, padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:16 }}>⚠️ {erro}</div>}
-        <BtnPrimario onClick={handleCadastro} loading={loading} disabled={!nome||!email||!senha}>🎉 Criar minha conta</BtnPrimario>
+        <Btn onClick={handleLogin} loading={loading} disabled={!email||!senha}>Entrar →</Btn>
         <div style={{ textAlign:"center", marginTop:16, fontSize:14, color:T.cinza3 }}>
-          Já tem conta? <span onClick={onIrLogin} style={{ color:T.amarelo, fontWeight:700, cursor:"pointer" }}>Entrar</span>
+          Não tem conta? <span onClick={() => setTela("cadastro")} style={{ color:T.amarelo, fontWeight:700, cursor:"pointer" }}>Criar grátis</span>
         </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight:"100vh", background:T.fundo, fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      <div style={{ background:T.fundoCard, padding:"48px 24px 20px", borderBottom:`1px solid ${T.cinzaBorda}` }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={() => setTela("splash")} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:T.cinza2 }}>←</button>
+          <div style={{ fontWeight:900, fontSize:20, letterSpacing:3, color:T.cinza1 }}>Criar conta grátis</div>
+        </div>
+      </div>
+      <div style={{ padding:"28px 24px" }}>
+        {sucesso ? (
+          <div style={{ textAlign:"center", padding:"40px 0" }}>
+            <div style={{ fontSize:52, marginBottom:16 }}>📧</div>
+            <div style={{ fontSize:20, fontWeight:800, color:T.verde, marginBottom:8 }}>Verifique seu e-mail!</div>
+            <div style={{ fontSize:14, color:T.cinza3, marginBottom:24 }}>{sucesso}</div>
+            <Btn onClick={() => setTela("login")}>Ir para o login</Btn>
+          </div>
+        ) : (
+          <>
+            <Input label="Nome completo *" value={nome} onChange={e=>setNome(e.target.value)} placeholder="João da Silva" />
+            <Input label="E-mail *" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="seu@email.com" />
+            <Input label="Telefone" value={tel} onChange={e=>setTel(e.target.value)} placeholder="(11) 99999-0000" />
+            <Input label="Senha *" type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:10 }}>Você é:</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                {[{ id:"mestre", emoji:"👑", label:"Mestre / Dono" },{ id:"funcionario", emoji:"👷", label:"Funcionário" }].map(p => (
+                  <button key={p.id} onClick={() => setPerfil(p.id)} style={{ padding:"14px 12px", border:`2px solid ${perfil===p.id ? T.amarelo : T.cinzaBorda}`, borderRadius:12, background: perfil===p.id ? T.amareloC : T.fundoCard, cursor:"pointer" }}>
+                    <div style={{ fontSize:22, marginBottom:6 }}>{p.emoji}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color: perfil===p.id ? T.amarelo : T.cinza1 }}>{p.label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {erro && <div style={{ background:T.vermelhoC, color:T.vermelho, padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:16 }}>⚠️ {erro}</div>}
+            <Btn onClick={handleCadastro} loading={loading} disabled={!nome||!email||!senha}>🎉 Criar minha conta</Btn>
+            <div style={{ textAlign:"center", marginTop:16, fontSize:14, color:T.cinza3 }}>
+              Já tem conta? <span onClick={() => setTela("login")} style={{ color:T.amarelo, fontWeight:700, cursor:"pointer" }}>Entrar</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -239,11 +248,11 @@ function TelaCadastro({ onCadastrar, onIrLogin }) {
 
 // ─── DASHBOARD ─────────────────────────────────────────────
 function Dashboard({ usuario, nav, onObraClick }) {
-  const [obras, setObras]   = useState([]);
+  const [obras, setObras]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalNova, setModalNova] = useState(false);
-  const [novaObra, setNovaObra]   = useState({ nome:"", endereco:"", fase_atual:"Fundação" });
-  const [salvando, setSalvando]   = useState(false);
+  const [modal, setModal]     = useState(false);
+  const [nova, setNova]       = useState({ nome:"", endereco:"", fase_atual:"Fundação" });
+  const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -255,81 +264,50 @@ function Dashboard({ usuario, nav, onObraClick }) {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const criarObra = async () => {
-    if (!novaObra.nome.trim()) return;
+  const criar = async () => {
+    if (!nova.nome.trim()) return;
     setSalvando(true);
     try {
-      await supabase.from("obras").insert({ ...novaObra, dono_id: usuario.id, status:"em_andamento", progresso:0 });
-      setModalNova(false);
-      setNovaObra({ nome:"", endereco:"", fase_atual:"Fundação" });
-      carregar();
+      await supabase.from("obras").insert({ ...nova, dono_id: usuario.id, status:"em_andamento", progresso:0 });
+      setModal(false); setNova({ nome:"", endereco:"", fase_atual:"Fundação" }); carregar();
     } finally { setSalvando(false); }
   };
 
-  const STATUS = {
-    em_andamento: { label:"Em andamento", cor:T.verde,   fundo:T.verdeC    },
-    em_dia:       { label:"Em dia",        cor:T.verde,   fundo:T.verdeC    },
-    atencao:      { label:"Atenção",       cor:T.amarelo, fundo:T.amareloC  },
-    atrasado:     { label:"Atrasado",      cor:T.vermelho,fundo:T.vermelhoC },
-    pausada:      { label:"Pausada",       cor:T.cinza3,  fundo:"#F5F5F5"   },
-    concluida:    { label:"Concluída",     cor:T.verde,   fundo:T.verdeC    },
-  };
+  const ST = { em_andamento:{ label:"Em andamento", cor:T.verde, fundo:T.verdeC }, atencao:{ label:"Atenção", cor:T.amarelo, fundo:T.amareloC }, atrasado:{ label:"Atrasado", cor:T.vermelho, fundo:T.vermelhoC }, pausada:{ label:"Pausada", cor:T.cinza3, fundo:"#F5F5F5" }, concluida:{ label:"Concluída", cor:T.verde, fundo:T.verdeC } };
 
   return (
     <>
-      <Header
-        titulo={`Olá, ${usuario.nome?.split(" ")[0] || "Mestre"} 👷`}
-        subtitulo="Boa tarde"
-        acao={
-          <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-            <div style={{ width:34, height:34, borderRadius:17, background:T.amarelo, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:12, color:"#fff" }}>
-              {usuario.nome?.split(" ").map(n=>n[0]).join("").slice(0,2) || "MJ"}
-            </div>
-          </div>
-        }
+      <Header titulo={`Olá, ${usuario.nome?.split(" ")[0] || "Mestre"} 👷`} subtitulo="Boa tarde"
+        acao={<div style={{ width:34, height:34, borderRadius:17, background:T.amarelo, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:12, color:"#fff" }}>{usuario.nome?.split(" ").map(n=>n[0]).join("").slice(0,2)||"MJ"}</div>}
       />
-
       <div style={{ padding:"20px 16px 100px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20 }}>
           <span style={{ fontWeight:900, fontSize:20, letterSpacing:4, color:T.cinza1 }}>OBRAFÁCIL</span>
           <span style={{ background:T.amareloC, color:T.amarelo, fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:4 }}>BETA</span>
         </div>
-
-        {/* STATS */}
         <div style={{ display:"flex", gap:10, marginBottom:22 }}>
-          {[
-            { emoji:"🏗️", valor:obras.length,      label:"Obras",   cor:T.amarelo },
-            { emoji:"✅", valor:obras.filter(o=>o.status==="concluida").length, label:"Concluídas", cor:T.verde },
-            { emoji:"⚠️", valor:obras.filter(o=>o.status==="atrasado").length,  label:"Atrasadas",  cor:T.vermelho },
-          ].map((s,i) => (
+          {[{ emoji:"🏗️", v:obras.length, l:"Obras", c:T.amarelo },{ emoji:"✅", v:obras.filter(o=>o.status==="concluida").length, l:"Concluídas", c:T.verde },{ emoji:"⚠️", v:obras.filter(o=>o.status==="atrasado").length, l:"Atrasadas", c:T.vermelho }].map((s,i) => (
             <div key={i} style={{ flex:1, background:T.fundoCard, borderRadius:12, padding:"12px 8px", textAlign:"center", border:`1px solid ${T.cinzaBorda}` }}>
               <div style={{ fontSize:18, marginBottom:4 }}>{s.emoji}</div>
-              <div style={{ fontSize:22, fontWeight:800, color:s.cor }}>{s.valor}</div>
-              <div style={{ fontSize:9, color:T.cinza3, marginTop:3 }}>{s.label}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:s.c }}>{s.v}</div>
+              <div style={{ fontSize:9, color:T.cinza3, marginTop:3 }}>{s.l}</div>
             </div>
           ))}
         </div>
-
-        {/* OBRAS */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <span style={{ fontSize:16, fontWeight:700, color:T.cinza1 }}>🏗️ Obras ativas</span>
-          <div onClick={() => setModalNova(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>
+          <div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>
         </div>
-
         {loading ? <Spinner /> : obras.length === 0 ? (
           <div style={{ textAlign:"center", padding:"48px 24px", color:T.cinza3 }}>
             <div style={{ fontSize:48, marginBottom:12 }}>🏗️</div>
             <div style={{ fontSize:16, fontWeight:700, marginBottom:8 }}>Nenhuma obra ainda</div>
-            <div style={{ fontSize:14, marginBottom:20 }}>Crie sua primeira obra agora!</div>
-            <button onClick={() => setModalNova(true)} style={{ padding:"12px 24px", background:T.amarelo, border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer" }}>
-              + Criar primeira obra
-            </button>
+            <button onClick={() => setModal(true)} style={{ padding:"12px 24px", background:T.amarelo, border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer" }}>+ Criar primeira obra</button>
           </div>
         ) : obras.map(obra => {
-          const st = STATUS[obra.status] || STATUS.em_andamento;
+          const st = ST[obra.status] || ST.em_andamento;
           return (
-            <div key={obra.id} onClick={() => onObraClick(obra)}
-              style={{ background:T.fundoCard, borderRadius:14, marginBottom:14, overflow:"hidden", border:`1px solid ${T.cinzaBorda}`, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer" }}
+            <div key={obra.id} onClick={() => onObraClick(obra)} style={{ background:T.fundoCard, borderRadius:14, marginBottom:14, overflow:"hidden", border:`1px solid ${T.cinzaBorda}`, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer" }}
               onMouseEnter={e => e.currentTarget.style.borderColor=T.amarelo+"60"}
               onMouseLeave={e => e.currentTarget.style.borderColor=T.cinzaBorda}
             >
@@ -344,9 +322,9 @@ function Dashboard({ usuario, nav, onObraClick }) {
                 </div>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
                   <span style={{ fontSize:12, color:T.cinza3 }}>Progresso</span>
-                  <span style={{ fontSize:12, fontWeight:700, color:st.cor }}>{obra.progresso || 0}%</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:st.cor }}>{obra.progresso||0}%</span>
                 </div>
-                <ProgBar valor={obra.progresso || 0} cor={st.cor} />
+                <ProgBar valor={obra.progresso||0} cor={st.cor} />
                 <div style={{ display:"flex", justifyContent:"flex-end", marginTop:12, paddingTop:10, borderTop:`1px solid ${T.cinzaBorda}` }}>
                   <span style={{ fontSize:12, color:T.amarelo, fontWeight:600 }}>Ver detalhes →</span>
                 </div>
@@ -354,15 +332,9 @@ function Dashboard({ usuario, nav, onObraClick }) {
             </div>
           );
         })}
-
-        {/* ATALHOS */}
         <div style={{ fontSize:16, fontWeight:700, color:T.cinza1, margin:"20px 0 12px" }}>🔧 Atalhos</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-          {[
-            { emoji:"✅", label:"Tarefas",    id:"tarefas",   cor:T.verde   },
-            { emoji:"💰", label:"Orçamentos", id:"orcamento", cor:T.amarelo },
-            { emoji:"📦", label:"Estoque",    id:"estoque",   cor:T.laranja },
-          ].map((a,i) => (
+          {[{ emoji:"✅", label:"Tarefas", id:"tarefas", cor:T.verde },{ emoji:"💰", label:"Orçamentos", id:"orcamento", cor:T.amarelo },{ emoji:"📦", label:"Estoque", id:"estoque", cor:T.laranja }].map((a,i) => (
             <div key={i} onClick={() => nav(a.id)} style={{ background:T.fundoCard, borderRadius:12, padding:14, textAlign:"center", border:`1px solid ${T.cinzaBorda}`, cursor:"pointer" }}
               onMouseEnter={e => e.currentTarget.style.borderColor=a.cor}
               onMouseLeave={e => e.currentTarget.style.borderColor=T.cinzaBorda}
@@ -373,160 +345,440 @@ function Dashboard({ usuario, nav, onObraClick }) {
           ))}
         </div>
       </div>
-
-      {/* MODAL NOVA OBRA */}
-      {modalNova && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:50, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-          <div style={{ background:T.fundoCard, borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:430 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-              <div style={{ fontSize:17, fontWeight:700, color:T.cinza1 }}>Nova Obra</div>
-              <button onClick={() => setModalNova(false)} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:T.cinza3 }}>✕</button>
-            </div>
-            <Input label="Nome da obra *" value={novaObra.nome} onChange={e=>setNovaObra(p=>({...p,nome:e.target.value}))} placeholder="Ex: Residência Silva" />
-            <Input label="Endereço" value={novaObra.endereco} onChange={e=>setNovaObra(p=>({...p,endereco:e.target.value}))} placeholder="Rua, número, bairro" />
-            <div style={{ marginBottom:20 }}>
-              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Fase atual</div>
-              <select value={novaObra.fase_atual} onChange={e=>setNovaObra(p=>({...p,fase_atual:e.target.value}))}
-                style={{ width:"100%", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${T.cinzaBorda}`, fontSize:14, color:T.cinza1, background:T.fundoCard }}>
-                {["Fundação","Estrutura","Alvenaria","Cobertura","Instalações","Acabamento","Entrega"].map(f => <option key={f}>{f}</option>)}
-              </select>
-            </div>
-            <BtnPrimario onClick={criarObra} loading={salvando} disabled={!novaObra.nome.trim()}>
-              🏗️ Criar obra
-            </BtnPrimario>
+      {modal && (
+        <Modal titulo="Nova Obra" onFechar={() => setModal(false)}>
+          <Input label="Nome da obra *" value={nova.nome} onChange={e=>setNova(p=>({...p,nome:e.target.value}))} placeholder="Ex: Residência Silva" />
+          <Input label="Endereço" value={nova.endereco} onChange={e=>setNova(p=>({...p,endereco:e.target.value}))} placeholder="Rua, número, bairro" />
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Fase atual</div>
+            <select value={nova.fase_atual} onChange={e=>setNova(p=>({...p,fase_atual:e.target.value}))} style={{ width:"100%", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${T.cinzaBorda}`, fontSize:14, color:T.cinza1, background:T.fundoCard }}>
+              {["Fundação","Estrutura","Alvenaria","Cobertura","Instalações","Acabamento","Entrega"].map(f=><option key={f}>{f}</option>)}
+            </select>
           </div>
-        </div>
+          <Btn onClick={criar} loading={salvando} disabled={!nova.nome.trim()}>🏗️ Criar obra</Btn>
+        </Modal>
       )}
     </>
   );
 }
 
-// ─── DETALHE OBRA ──────────────────────────────────────────
-function DetalheObra({ obra, usuario, onVoltar }) {
-  const [tarefas, setTarefas]   = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [modalTarefa, setModalTarefa] = useState(false);
-  const [novaTarefa, setNovaTarefa]   = useState({ titulo:"", instrucoes:"", prioridade:"normal" });
-  const [salvando, setSalvando]       = useState(false);
-  const [progresso, setProgresso]     = useState(obra.progresso || 0);
+// ─── TAREFAS ───────────────────────────────────────────────
+function Tarefas({ usuario }) {
+  const [obras, setObras]     = useState([]);
+  const [obraSel, setObraSel] = useState(null);
+  const [tarefas, setTarefas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal]     = useState(false);
+  const [nova, setNova]       = useState({ titulo:"", instrucoes:"", prioridade:"normal" });
+  const [salvando, setSalvando] = useState(false);
 
-  const carregar = useCallback(async () => {
+  useEffect(() => {
+    supabase.from("obras").select("*").eq("dono_id", usuario.id).then(({ data }) => {
+      setObras(data || []);
+      if (data?.length > 0) setObraSel(data[0].id);
+    });
+  }, [usuario.id]);
+
+  const carregarTarefas = useCallback(async () => {
+    if (!obraSel) return;
     setLoading(true);
     try {
-      const { data } = await supabase.from("tarefas").select("*").eq("obra_id", obra.id).order("criado_em", { ascending:true });
+      const { data } = await supabase.from("tarefas").select("*").eq("obra_id", obraSel).order("criado_em", { ascending:true });
       setTarefas(data || []);
       const total = data?.length || 0;
       const conc  = data?.filter(t=>t.status==="concluida").length || 0;
-      const pct   = total > 0 ? Math.round((conc/total)*100) : 0;
-      setProgresso(pct);
-      await supabase.from("obras").update({ progresso:pct }).eq("id", obra.id);
+      if (total > 0) await supabase.from("obras").update({ progresso: Math.round((conc/total)*100) }).eq("id", obraSel);
     } finally { setLoading(false); }
-  }, [obra.id]);
+  }, [obraSel]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { carregarTarefas(); }, [carregarTarefas]);
 
-  const criarTarefa = async () => {
-    if (!novaTarefa.titulo.trim()) return;
+  const criar = async () => {
+    if (!nova.titulo.trim()) return;
     setSalvando(true);
     try {
-      await supabase.from("tarefas").insert({ ...novaTarefa, obra_id: obra.id, status:"pendente", criado_por: usuario.id });
-      setModalTarefa(false);
-      setNovaTarefa({ titulo:"", instrucoes:"", prioridade:"normal" });
-      carregar();
+      await supabase.from("tarefas").insert({ ...nova, obra_id: obraSel, status:"pendente", criado_por: usuario.id });
+      setModal(false); setNova({ titulo:"", instrucoes:"", prioridade:"normal" }); carregarTarefas();
     } finally { setSalvando(false); }
   };
 
-  const toggleTarefa = async (tarefa) => {
-    const novoStatus = tarefa.status === "concluida" ? "pendente" : "concluida";
-    await supabase.from("tarefas").update({ status: novoStatus }).eq("id", tarefa.id);
-    carregar();
+  const toggle = async (t) => {
+    await supabase.from("tarefas").update({ status: t.status==="concluida" ? "pendente" : "concluida" }).eq("id", t.id);
+    carregarTarefas();
   };
 
-  const ST = { pendente:{ cor:T.cinza3, fundo:"#F0F0F0" }, em_andamento:{ cor:T.amarelo, fundo:T.amareloC }, concluida:{ cor:T.verde, fundo:T.verdeC } };
+  const ST = { pendente:{ label:"Pendente", cor:T.cinza3, fundo:"#F0F0F0" }, em_andamento:{ label:"Andamento", cor:T.amarelo, fundo:T.amareloC }, concluida:{ label:"Concluída", cor:T.verde, fundo:T.verdeC } };
   const conc = tarefas.filter(t=>t.status==="concluida").length;
 
   return (
     <>
-      <Header titulo={obra.nome} subtitulo="← Obras" onVoltar={onVoltar}
-        acao={<span style={{ background:T.amareloC, color:T.amarelo, fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:20 }}>{obra.fase_atual}</span>}
-      />
+      <Header titulo="Tarefas" subtitulo="✅ Módulo" acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>} />
       <div style={{ padding:"16px 16px 100px" }}>
-
-        {/* Progresso */}
-        <div style={{ background:T.fundoCard, borderRadius:14, padding:16, marginBottom:16, border:`1px solid ${T.cinzaBorda}` }}>
-          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-            <span style={{ fontSize:13, fontWeight:600, color:T.cinza2 }}>Progresso geral</span>
-            <span style={{ fontSize:13, fontWeight:700, color:T.verde }}>{conc}/{tarefas.length} tarefas</span>
+        {/* Seletor de obra */}
+        <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:14 }}>
+          {obras.map(o => (
+            <button key={o.id} onClick={() => setObraSel(o.id)} style={{ padding:"6px 14px", border:`1.5px solid ${obraSel===o.id ? T.amarelo : T.cinzaBorda}`, borderRadius:20, background: obraSel===o.id ? T.amareloC : T.fundoCard, color: obraSel===o.id ? T.amarelo : T.cinza3, fontWeight:600, fontSize:12, cursor:"pointer", whiteSpace:"nowrap" }}>
+              {o.nome}
+            </button>
+          ))}
+        </div>
+        {obraSel && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+              <span style={{ fontSize:13, color:T.cinza3 }}>Progresso</span>
+              <span style={{ fontSize:13, fontWeight:700, color:T.verde }}>{conc}/{tarefas.length} concluídas</span>
+            </div>
+            <ProgBar valor={tarefas.length > 0 ? (conc/tarefas.length)*100 : 0} cor={T.verde} />
           </div>
-          <ProgBar valor={progresso} cor={T.verde} />
-          <div style={{ fontSize:22, fontWeight:900, color:T.amarelo, marginTop:10 }}>{progresso}%</div>
-        </div>
-
-        {/* Tarefas */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-          <span style={{ fontSize:16, fontWeight:700, color:T.cinza1 }}>✅ Tarefas</span>
-          <div onClick={() => setModalTarefa(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>
-        </div>
-
+        )}
         {loading ? <Spinner /> : tarefas.length === 0 ? (
-          <div style={{ textAlign:"center", padding:"32px 0", color:T.cinza3 }}>
-            <div style={{ fontSize:36, marginBottom:8 }}>📋</div>
-            <div style={{ fontSize:14 }}>Nenhuma tarefa ainda</div>
+          <div style={{ textAlign:"center", padding:"40px 0", color:T.cinza3 }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
+            <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Nenhuma tarefa ainda</div>
+            <button onClick={() => setModal(true)} style={{ padding:"10px 20px", background:T.amarelo, border:"none", borderRadius:10, color:"#fff", fontWeight:700, cursor:"pointer" }}>+ Criar tarefa</button>
           </div>
         ) : tarefas.map(t => {
           const st = ST[t.status] || ST.pendente;
           return (
             <div key={t.id} style={{ display:"flex", alignItems:"center", gap:12, background:T.fundoCard, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${t.prioridade==="urgente" ? T.vermelho+"40" : T.cinzaBorda}` }}>
-              {t.prioridade==="urgente" && <div style={{ position:"absolute", height:3, background:T.vermelho }} />}
-              <div onClick={() => toggleTarefa(t)} style={{ width:22, height:22, borderRadius:6, flexShrink:0, border:`2px solid ${t.status==="concluida" ? T.verde : T.cinzaBorda}`, background: t.status==="concluida" ? T.verde : "transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+              <div onClick={() => toggle(t)} style={{ width:22, height:22, borderRadius:6, flexShrink:0, border:`2px solid ${t.status==="concluida" ? T.verde : T.cinzaBorda}`, background: t.status==="concluida" ? T.verde : "transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
                 {t.status==="concluida" && <span style={{ color:"#fff", fontSize:12 }}>✓</span>}
               </div>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:13, fontWeight:600, color: t.status==="concluida" ? T.cinza3 : T.cinza1, textDecoration: t.status==="concluida" ? "line-through" : "none" }}>{t.titulo}</div>
-                {t.instrucoes && <div style={{ fontSize:11, color:T.cinza3, marginTop:2 }}>{t.instrucoes.slice(0,60)}...</div>}
+                {t.instrucoes && <div style={{ fontSize:11, color:T.cinza3, marginTop:2 }}>{t.instrucoes.slice(0,60)}{t.instrucoes.length > 60 ? "..." : ""}</div>}
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                <Badge label={t.status==="concluida" ? "Concluída" : t.status==="em_andamento" ? "Andamento" : "Pendente"} cor={st.cor} fundo={st.fundo} />
-                {t.prioridade==="urgente" && <span style={{ fontSize:10, color:T.vermelho, fontWeight:700 }}>🔴 Urgente</span>}
+                <Badge label={st.label} cor={st.cor} fundo={st.fundo} />
+                {t.prioridade==="urgente" && <span style={{ fontSize:10, color:T.vermelho, fontWeight:700 }}>🔴</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {modal && (
+        <Modal titulo="Nova Tarefa" onFechar={() => setModal(false)}>
+          <Input label="Título *" value={nova.titulo} onChange={e=>setNova(p=>({...p,titulo:e.target.value}))} placeholder="Ex: Assentar tijolos bloco A" />
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Instruções</div>
+            <textarea value={nova.instrucoes} onChange={e=>setNova(p=>({...p,instrucoes:e.target.value}))} placeholder="1. Faça isso&#10;2. Depois isso..." style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, color:T.cinza1, outline:"none", fontFamily:"inherit", boxSizing:"border-box", resize:"none", height:90 }} />
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:8 }}>Prioridade</div>
+            <div style={{ display:"flex", gap:10 }}>
+              {["normal","urgente"].map(p => (
+                <button key={p} onClick={() => setNova(prev=>({...prev,prioridade:p}))} style={{ flex:1, padding:"9px", border:`1.5px solid ${nova.prioridade===p ? (p==="urgente" ? T.vermelho : T.verde) : T.cinzaBorda}`, borderRadius:10, background: nova.prioridade===p ? (p==="urgente" ? T.vermelhoC : T.verdeC) : T.fundoCard, color: nova.prioridade===p ? (p==="urgente" ? T.vermelho : T.verde) : T.cinza3, fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                  {p==="urgente" ? "🔴 Urgente" : "🟢 Normal"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Btn onClick={criar} loading={salvando} disabled={!nova.titulo.trim()}>Adicionar tarefa</Btn>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// ─── ORÇAMENTOS ────────────────────────────────────────────
+function Orcamentos({ usuario }) {
+  const [orcs, setOrcs]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal]     = useState(false);
+  const [detalhe, setDetalhe] = useState(null);
+  const [itens, setItens]     = useState([]);
+  const [novo, setNovo]       = useState({ cliente_nome:"", cliente_telefone:"", endereco_obra:"", descricao:"" });
+  const [novoItem, setNovoItem] = useState({ descricao:"", tipo:"material", quantidade:"", unidade:"un", valor_unitario:"" });
+  const [salvando, setSalvando] = useState(false);
+
+  const carregar = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from("orcamentos").select("*").eq("criado_por", usuario.id).order("criado_em", { ascending:false });
+      setOrcs(data || []);
+    } finally { setLoading(false); }
+  }, [usuario.id]);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const carregarItens = async (orcId) => {
+    const { data } = await supabase.from("orcamento_itens").select("*").eq("orcamento_id", orcId);
+    setItens(data || []);
+  };
+
+  const abrirDetalhe = async (orc) => {
+    setDetalhe(orc);
+    await carregarItens(orc.id);
+  };
+
+  const criar = async () => {
+    if (!novo.cliente_nome.trim()) return;
+    setSalvando(true);
+    try {
+      await supabase.from("orcamentos").insert({ ...novo, status:"rascunho", criado_por: usuario.id, total_geral:0 });
+      setModal(false); setNovo({ cliente_nome:"", cliente_telefone:"", endereco_obra:"", descricao:"" }); carregar();
+    } finally { setSalvando(false); }
+  };
+
+  const adicionarItem = async () => {
+    if (!novoItem.descricao || !novoItem.quantidade || !novoItem.valor_unitario) return;
+    setSalvando(true);
+    try {
+      await supabase.from("orcamento_itens").insert({ ...novoItem, orcamento_id: detalhe.id, quantidade: parseFloat(novoItem.quantidade), valor_unitario: parseFloat(novoItem.valor_unitario) });
+      setNovoItem({ descricao:"", tipo:"material", quantidade:"", unidade:"un", valor_unitario:"" });
+      await carregarItens(detalhe.id);
+      const total = itens.reduce((s,i) => s + (parseFloat(i.quantidade)||0)*(parseFloat(i.valor_unitario)||0), 0) + (parseFloat(novoItem.quantidade)||0)*(parseFloat(novoItem.valor_unitario)||0);
+      await supabase.from("orcamentos").update({ total_geral: total }).eq("id", detalhe.id);
+      carregar();
+    } finally { setSalvando(false); }
+  };
+
+  const ST = { rascunho:{ label:"Rascunho", cor:T.cinza3, fundo:"#F0F0F0" }, enviado:{ label:"Enviado", cor:T.azul, fundo:T.azulC }, aprovado:{ label:"Aprovado", cor:T.verde, fundo:T.verdeC }, recusado:{ label:"Recusado", cor:T.vermelho, fundo:T.vermelhoC }, aguardando:{ label:"Aguardando", cor:T.amarelo, fundo:T.amareloC } };
+  const totalAprov = orcs.filter(o=>o.status==="aprovado").reduce((s,o)=>s+(o.total_geral||0),0);
+
+  if (detalhe) return (
+    <>
+      <Header titulo={detalhe.cliente_nome} subtitulo="← Orçamentos" onVoltar={() => { setDetalhe(null); carregar(); }}
+        acao={<Badge label={(ST[detalhe.status]||ST.rascunho).label} cor={(ST[detalhe.status]||ST.rascunho).cor} fundo={(ST[detalhe.status]||ST.rascunho).fundo} />}
+      />
+      <div style={{ padding:"16px 16px 100px" }}>
+        <div style={{ background:T.fundoCard, borderRadius:14, padding:16, border:`1px solid ${T.cinzaBorda}`, marginBottom:16 }}>
+          <div style={{ fontSize:12, color:T.cinza3, marginBottom:4 }}>📍 {detalhe.endereco_obra || "—"}</div>
+          <div style={{ fontSize:12, color:T.cinza3, marginBottom:4 }}>📞 {detalhe.cliente_telefone || "—"}</div>
+          <div style={{ fontSize:12, color:T.cinza3 }}>📝 {detalhe.descricao || "—"}</div>
+        </div>
+
+        <div style={{ fontSize:14, fontWeight:700, color:T.cinza1, marginBottom:12 }}>Itens do orçamento</div>
+        {itens.map((item,i) => (
+          <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:T.fundoCard, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${T.cinzaBorda}` }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600, color:T.cinza1 }}>{item.descricao}</div>
+              <div style={{ fontSize:11, color:T.cinza3 }}>{item.quantidade} {item.unidade} × {moeda(item.valor_unitario)}</div>
+            </div>
+            <div style={{ fontSize:14, fontWeight:700, color:T.cinza1 }}>{moeda((item.quantidade||0)*(item.valor_unitario||0))}</div>
+          </div>
+        ))}
+
+        <div style={{ background:T.amareloC, border:`1px solid ${T.amarelo}`, borderRadius:12, padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+          <span style={{ fontSize:15, fontWeight:700, color:T.cinza1 }}>TOTAL</span>
+          <span style={{ fontSize:24, fontWeight:900, color:T.amarelo }}>{moeda(itens.reduce((s,i)=>s+(i.quantidade||0)*(i.valor_unitario||0),0))}</span>
+        </div>
+
+        <div style={{ background:T.fundo, borderRadius:12, padding:14, border:`1px solid ${T.cinzaBorda}`, marginBottom:16 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:T.cinza3, marginBottom:10, letterSpacing:1, textTransform:"uppercase" }}>+ Adicionar item</div>
+          <Input value={novoItem.descricao} onChange={e=>setNovoItem(p=>({...p,descricao:e.target.value}))} placeholder="Descrição do item" />
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:8 }}>
+            <input type="number" value={novoItem.quantidade} onChange={e=>setNovoItem(p=>({...p,quantidade:e.target.value}))} placeholder="Qtd" style={{ padding:"10px", borderRadius:8, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, fontFamily:"inherit" }} />
+            <select value={novoItem.unidade} onChange={e=>setNovoItem(p=>({...p,unidade:e.target.value}))} style={{ padding:"10px", borderRadius:8, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, background:T.fundoCard }}>
+              {["un","m²","m³","kg","saco","lata","barra","dia"].map(u=><option key={u}>{u}</option>)}
+            </select>
+            <input type="number" value={novoItem.valor_unitario} onChange={e=>setNovoItem(p=>({...p,valor_unitario:e.target.value}))} placeholder="R$ unit" style={{ padding:"10px", borderRadius:8, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, fontFamily:"inherit" }} />
+          </div>
+          <Btn onClick={adicionarItem} loading={salvando} disabled={!novoItem.descricao||!novoItem.quantidade||!novoItem.valor_unitario}>Adicionar</Btn>
+        </div>
+
+        <div style={{ fontSize:12, fontWeight:700, color:T.cinza3, marginBottom:10, letterSpacing:1, textTransform:"uppercase" }}>Status</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          {["rascunho","aguardando","aprovado","recusado"].map(s => {
+            const cfg = ST[s] || ST.rascunho;
+            return (
+              <button key={s} onClick={async () => { await supabase.from("orcamentos").update({ status:s }).eq("id", detalhe.id); setDetalhe(p=>({...p,status:s})); carregar(); }} style={{ padding:"10px", border:`1.5px solid ${detalhe.status===s ? cfg.cor : T.cinzaBorda}`, borderRadius:10, background: detalhe.status===s ? cfg.fundo : T.fundoCard, color: detalhe.status===s ? cfg.cor : T.cinza3, fontWeight:600, fontSize:12, cursor:"pointer" }}>{cfg.label}</button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <Header titulo="Orçamentos" subtitulo="💰 Módulo" acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Novo</div>} />
+      <div style={{ padding:"16px 16px 100px" }}>
+        <div style={{ background:T.verdeC, border:`1px solid ${T.verde}`, borderRadius:12, padding:"14px 16px", marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontSize:13, color:T.verde, fontWeight:600 }}>💰 Total aprovado</span>
+          <span style={{ fontSize:20, fontWeight:800, color:T.verde }}>{moeda(totalAprov)}</span>
+        </div>
+        {loading ? <Spinner /> : orcs.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"40px 0", color:T.cinza3 }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>💰</div>
+            <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Nenhum orçamento ainda</div>
+            <button onClick={() => setModal(true)} style={{ padding:"10px 20px", background:T.amarelo, border:"none", borderRadius:10, color:"#fff", fontWeight:700, cursor:"pointer" }}>+ Criar orçamento</button>
+          </div>
+        ) : orcs.map(o => {
+          const st = ST[o.status] || ST.rascunho;
+          return (
+            <div key={o.id} onClick={() => abrirDetalhe(o)} style={{ background:T.fundoCard, borderRadius:14, padding:16, marginBottom:12, border:`1px solid ${T.cinzaBorda}`, cursor:"pointer" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor=T.amarelo+"60"}
+              onMouseLeave={e => e.currentTarget.style.borderColor=T.cinzaBorda}
+            >
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                <div style={{ fontSize:15, fontWeight:700, color:T.cinza1 }}>{o.cliente_nome}</div>
+                <Badge label={st.label} cor={st.cor} fundo={st.fundo} />
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:10, borderTop:`1px solid ${T.cinzaBorda}` }}>
+                <span style={{ fontSize:16, fontWeight:800, color:T.cinza1 }}>{moeda(o.total_geral||0)}</span>
+                <span style={{ fontSize:12, color:T.amarelo, fontWeight:600 }}>Abrir →</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {modal && (
+        <Modal titulo="Novo Orçamento" onFechar={() => setModal(false)}>
+          <Input label="Nome do cliente *" value={novo.cliente_nome} onChange={e=>setNovo(p=>({...p,cliente_nome:e.target.value}))} placeholder="Ex: Família Silva" />
+          <Input label="Telefone" value={novo.cliente_telefone} onChange={e=>setNovo(p=>({...p,cliente_telefone:e.target.value}))} placeholder="(11) 99999-0000" />
+          <Input label="Endereço da obra" value={novo.endereco_obra} onChange={e=>setNovo(p=>({...p,endereco_obra:e.target.value}))} placeholder="Rua, número, bairro" />
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Descrição do serviço</div>
+            <textarea value={novo.descricao} onChange={e=>setNovo(p=>({...p,descricao:e.target.value}))} placeholder="Ex: Reforma completa do banheiro..." style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, color:T.cinza1, outline:"none", fontFamily:"inherit", boxSizing:"border-box", resize:"none", height:80 }} />
+          </div>
+          <Btn onClick={criar} loading={salvando} disabled={!novo.cliente_nome.trim()}>Continuar →</Btn>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// ─── ESTOQUE ───────────────────────────────────────────────
+function Estoque({ usuario }) {
+  const [obras, setObras]     = useState([]);
+  const [obraSel, setObraSel] = useState(null);
+  const [itens, setItens]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal]     = useState(false);
+  const [modalMov, setModalMov] = useState(null);
+  const [novo, setNovo]       = useState({ material:"", unidade:"un", quantidade_atual:0, quantidade_minima:0 });
+  const [mov, setMov]         = useState({ quantidade:"", motivo:"" });
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    supabase.from("obras").select("*").eq("dono_id", usuario.id).then(({ data }) => {
+      setObras(data || []);
+      if (data?.length > 0) setObraSel(data[0].id);
+    });
+  }, [usuario.id]);
+
+  const carregar = useCallback(async () => {
+    if (!obraSel) return;
+    setLoading(true);
+    try {
+      const { data } = await supabase.from("estoque").select("*").eq("obra_id", obraSel).order("material", { ascending:true });
+      setItens(data || []);
+    } finally { setLoading(false); }
+  }, [obraSel]);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const criar = async () => {
+    if (!novo.material.trim()) return;
+    setSalvando(true);
+    try {
+      await supabase.from("estoque").insert({ ...novo, obra_id: obraSel, quantidade_atual: parseFloat(novo.quantidade_atual)||0, quantidade_minima: parseFloat(novo.quantidade_minima)||0 });
+      setModal(false); setNovo({ material:"", unidade:"un", quantidade_atual:0, quantidade_minima:0 }); carregar();
+    } finally { setSalvando(false); }
+  };
+
+  const registrarMov = async () => {
+    if (!mov.quantidade || !mov.motivo) return;
+    setSalvando(true);
+    try {
+      const { item, tipo } = modalMov;
+      const qtd = parseFloat(mov.quantidade);
+      const nova = tipo === "entrada" ? item.quantidade_atual + qtd : Math.max(0, item.quantidade_atual - qtd);
+      await supabase.from("estoque").update({ quantidade_atual: nova }).eq("id", item.id);
+      await supabase.from("estoque_movimentacoes").insert({ estoque_id: item.id, tipo, quantidade: qtd, motivo: mov.motivo, registrado_por: usuario.id });
+      setModalMov(null); setMov({ quantidade:"", motivo:"" }); carregar();
+    } finally { setSalvando(false); }
+  };
+
+  const alertas = itens.filter(i => i.quantidade_atual < i.quantidade_minima);
+
+  return (
+    <>
+      <Header titulo="Estoque" subtitulo="📦 Módulo" acao={<div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Item</div>} />
+      <div style={{ padding:"16px 16px 100px" }}>
+        <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, marginBottom:14 }}>
+          {obras.map(o => (
+            <button key={o.id} onClick={() => setObraSel(o.id)} style={{ padding:"6px 14px", border:`1.5px solid ${obraSel===o.id ? T.amarelo : T.cinzaBorda}`, borderRadius:20, background: obraSel===o.id ? T.amareloC : T.fundoCard, color: obraSel===o.id ? T.amarelo : T.cinza3, fontWeight:600, fontSize:12, cursor:"pointer", whiteSpace:"nowrap" }}>
+              {o.nome}
+            </button>
+          ))}
+        </div>
+        {alertas.length > 0 && (
+          <div style={{ background:T.vermelhoC, border:`1px solid ${T.vermelho}`, borderRadius:12, padding:"12px 14px", marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:T.vermelho, marginBottom:6 }}>🚨 {alertas.length} material(is) abaixo do mínimo</div>
+            {alertas.map(a => <div key={a.id} style={{ fontSize:12, color:T.vermelho }}>• {a.material}: {a.quantidade_atual} {a.unidade} (mín: {a.quantidade_minima})</div>)}
+          </div>
+        )}
+        {loading ? <Spinner /> : itens.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"40px 0", color:T.cinza3 }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
+            <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Nenhum material ainda</div>
+            <button onClick={() => setModal(true)} style={{ padding:"10px 20px", background:T.amarelo, border:"none", borderRadius:10, color:"#fff", fontWeight:700, cursor:"pointer" }}>+ Adicionar material</button>
+          </div>
+        ) : itens.map(item => {
+          const pct = Math.min((item.quantidade_atual / Math.max(item.quantidade_minima*2, item.quantidade_atual, 1))*100, 100);
+          const cor = item.quantidade_atual < item.quantidade_minima ? T.vermelho : item.quantidade_atual < item.quantidade_minima*1.5 ? T.amarelo : T.verde;
+          return (
+            <div key={item.id} style={{ background:T.fundoCard, borderRadius:14, padding:16, marginBottom:12, border:`1px solid ${T.cinzaBorda}` }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                <div style={{ fontSize:15, fontWeight:700, color:T.cinza1 }}>{item.material}</div>
+                <span style={{ fontSize:24, fontWeight:900, color:cor }}>{item.quantidade_atual} <span style={{ fontSize:12, color:T.cinza3, fontWeight:500 }}>{item.unidade}</span></span>
+              </div>
+              <ProgBar valor={pct} cor={cor} />
+              {item.quantidade_atual < item.quantidade_minima && <div style={{ fontSize:11, color:T.vermelho, marginTop:5, fontWeight:600 }}>⚠️ Repor {item.quantidade_minima - item.quantidade_atual} {item.unidade}</div>}
+              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                <button onClick={() => setModalMov({ item, tipo:"entrada" })} style={{ flex:1, padding:"8px", background:T.verdeC, border:`1px solid ${T.verde}`, borderRadius:8, color:T.verde, fontWeight:700, fontSize:12, cursor:"pointer" }}>↑ Entrada</button>
+                <button onClick={() => setModalMov({ item, tipo:"saida" })} style={{ flex:1, padding:"8px", background:T.vermelhoC, border:`1px solid ${T.vermelho}`, borderRadius:8, color:T.vermelho, fontWeight:700, fontSize:12, cursor:"pointer" }}>↓ Saída</button>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* MODAL NOVA TAREFA */}
-      {modalTarefa && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:50, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-          <div style={{ background:T.fundoCard, borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:430 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-              <div style={{ fontSize:17, fontWeight:700, color:T.cinza1 }}>Nova Tarefa</div>
-              <button onClick={() => setModalTarefa(false)} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:T.cinza3 }}>✕</button>
+      {modal && (
+        <Modal titulo="Novo Material" onFechar={() => setModal(false)}>
+          <Input label="Nome do material *" value={novo.material} onChange={e=>setNovo(p=>({...p,material:e.target.value}))} placeholder="Ex: Cimento 50kg" />
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Unidade</div>
+              <select value={novo.unidade} onChange={e=>setNovo(p=>({...p,unidade:e.target.value}))} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, background:T.fundoCard }}>
+                {["un","m²","m³","kg","saco","lata","barra","milh"].map(u=><option key={u}>{u}</option>)}
+              </select>
             </div>
-            <Input label="Título *" value={novaTarefa.titulo} onChange={e=>setNovaTarefa(p=>({...p,titulo:e.target.value}))} placeholder="Ex: Assentar tijolos bloco A" />
-            <div style={{ marginBottom:14 }}>
-              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Instruções (passo a passo)</div>
-              <textarea value={novaTarefa.instrucoes} onChange={e=>setNovaTarefa(p=>({...p,instrucoes:e.target.value}))}
-                placeholder="1. Faça isso&#10;2. Depois isso..."
-                style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, color:T.cinza1, outline:"none", fontFamily:"inherit", boxSizing:"border-box", resize:"none", height:90 }} />
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Qtd mínima</div>
+              <input type="number" value={novo.quantidade_minima} onChange={e=>setNovo(p=>({...p,quantidade_minima:e.target.value}))} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:14, fontFamily:"inherit" }} />
             </div>
-            <div style={{ marginBottom:20 }}>
-              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:8 }}>Prioridade</div>
-              <div style={{ display:"flex", gap:10 }}>
-                {["normal","urgente"].map(p => (
-                  <button key={p} onClick={() => setNovaTarefa(prev=>({...prev,prioridade:p}))} style={{
-                    flex:1, padding:"9px", border:`1.5px solid ${novaTarefa.prioridade===p ? (p==="urgente" ? T.vermelho : T.verde) : T.cinzaBorda}`,
-                    borderRadius:10, background: novaTarefa.prioridade===p ? (p==="urgente" ? T.vermelhoC : T.verdeC) : T.fundoCard,
-                    color: novaTarefa.prioridade===p ? (p==="urgente" ? T.vermelho : T.verde) : T.cinza3,
-                    fontWeight:600, fontSize:13, cursor:"pointer",
-                  }}>
-                    {p==="urgente" ? "🔴 Urgente" : "🟢 Normal"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <BtnPrimario onClick={criarTarefa} loading={salvando} disabled={!novaTarefa.titulo.trim()}>Adicionar tarefa</BtnPrimario>
           </div>
-        </div>
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Quantidade atual</div>
+            <input type="number" value={novo.quantidade_atual} onChange={e=>setNovo(p=>({...p,quantidade_atual:e.target.value}))} style={{ width:"100%", padding:"12px 14px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:14, fontFamily:"inherit" }} />
+          </div>
+          <Btn onClick={criar} loading={salvando} disabled={!novo.material.trim()}>Adicionar material</Btn>
+        </Modal>
+      )}
+
+      {modalMov && (
+        <Modal titulo={modalMov.tipo === "entrada" ? "↑ Registrar Entrada" : "↓ Registrar Saída"} onFechar={() => setModalMov(null)}>
+          <div style={{ fontSize:13, color:T.cinza3, marginBottom:16 }}>{modalMov.item.material} · estoque atual: {modalMov.item.quantidade_atual} {modalMov.item.unidade}</div>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Quantidade</div>
+            <input type="number" value={mov.quantidade} onChange={e=>setMov(p=>({...p,quantidade:e.target.value}))} placeholder={`Qtd em ${modalMov.item.unidade}`} style={{ width:"100%", padding:"13px 14px", borderRadius:10, border:`1.5px solid ${modalMov.tipo==="entrada" ? T.verde : T.vermelho}`, fontSize:18, fontWeight:700, color: modalMov.tipo==="entrada" ? T.verde : T.vermelho, outline:"none", fontFamily:"inherit", boxSizing:"border-box", textAlign:"center" }} />
+          </div>
+          <Input label="Motivo" value={mov.motivo} onChange={e=>setMov(p=>({...p,motivo:e.target.value}))} placeholder={modalMov.tipo==="entrada" ? "Ex: Compra NF #1234" : "Ex: Uso na fundação"} />
+          {mov.quantidade && !isNaN(parseFloat(mov.quantidade)) && (
+            <div style={{ background: modalMov.tipo==="entrada" ? T.verdeC : T.vermelhoC, border:`1px solid ${modalMov.tipo==="entrada" ? T.verde : T.vermelho}`, borderRadius:10, padding:"12px 16px", marginBottom:16, display:"flex", justifyContent:"space-between" }}>
+              <span style={{ fontSize:13, color: modalMov.tipo==="entrada" ? T.verde : T.vermelho, fontWeight:600 }}>Novo saldo:</span>
+              <span style={{ fontSize:20, fontWeight:900, color: modalMov.tipo==="entrada" ? T.verde : T.vermelho }}>
+                {Math.max(0, modalMov.item.quantidade_atual + (modalMov.tipo==="entrada" ? parseFloat(mov.quantidade) : -parseFloat(mov.quantidade)))} {modalMov.item.unidade}
+              </span>
+            </div>
+          )}
+          <Btn onClick={registrarMov} loading={salvando} disabled={!mov.quantidade||!mov.motivo} cor={modalMov.tipo==="entrada" ? T.verde : T.vermelho}>
+            {modalMov.tipo==="entrada" ? "↑ Confirmar Entrada" : "↓ Confirmar Saída"}
+          </Btn>
+        </Modal>
       )}
     </>
   );
@@ -534,33 +786,21 @@ function DetalheObra({ obra, usuario, onVoltar }) {
 
 // ─── PERFIL ────────────────────────────────────────────────
 function Perfil({ usuario, onLogout }) {
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    onLogout();
-  };
-
   return (
     <>
       <Header titulo="Perfil" subtitulo="👤 Conta" />
       <div style={{ padding:"16px 16px 100px" }}>
         <div style={{ textAlign:"center", marginBottom:24 }}>
           <div style={{ width:72, height:72, borderRadius:36, background:T.amarelo, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", fontSize:26, fontWeight:700, color:"#fff" }}>
-            {usuario.nome?.split(" ").map(n=>n[0]).join("").slice(0,2) || "MJ"}
+            {usuario.nome?.split(" ").map(n=>n[0]).join("").slice(0,2)||"MJ"}
           </div>
           <div style={{ fontSize:20, fontWeight:800, color:T.cinza1 }}>{usuario.nome}</div>
           <div style={{ fontSize:13, color:T.cinza3, marginTop:3 }}>{usuario.email}</div>
           <div style={{ display:"inline-block", marginTop:8, background:T.amareloC, color:T.amarelo, fontSize:12, fontWeight:700, padding:"4px 14px", borderRadius:20 }}>
-            {usuario.perfil === "mestre" ? "👑 Mestre" : "👷 Funcionário"}
+            {usuario.perfil==="mestre" ? "👑 Mestre" : "👷 Funcionário"}
           </div>
         </div>
-
-        {[
-          { emoji:"👤", label:"Editar perfil"   },
-          { emoji:"🔔", label:"Notificações"    },
-          { emoji:"🔒", label:"Alterar senha"   },
-          { emoji:"💰", label:"Planos e preços" },
-          { emoji:"❓", label:"Central de ajuda"},
-        ].map((item,i) => (
+        {[{ emoji:"👤", label:"Editar perfil" },{ emoji:"🔔", label:"Notificações" },{ emoji:"💰", label:"Planos e preços" },{ emoji:"❓", label:"Ajuda" }].map((item,i) => (
           <div key={i} style={{ display:"flex", alignItems:"center", gap:14, background:T.fundoCard, borderRadius:12, padding:"14px 16px", marginBottom:8, border:`1px solid ${T.cinzaBorda}`, cursor:"pointer" }}
             onMouseEnter={e=>e.currentTarget.style.borderColor=T.amarelo+"60"}
             onMouseLeave={e=>e.currentTarget.style.borderColor=T.cinzaBorda}
@@ -570,8 +810,7 @@ function Perfil({ usuario, onLogout }) {
             <span style={{ color:T.cinza3 }}>›</span>
           </div>
         ))}
-
-        <div onClick={handleLogout} style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:T.vermelhoC, borderRadius:12, padding:"14px", marginTop:8, cursor:"pointer" }}>
+        <div onClick={onLogout} style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:T.vermelhoC, borderRadius:12, padding:"14px", marginTop:8, cursor:"pointer" }}>
           <span style={{ fontSize:20 }}>🚪</span>
           <span style={{ fontSize:14, fontWeight:700, color:T.vermelho }}>Sair da conta</span>
         </div>
@@ -582,33 +821,20 @@ function Perfil({ usuario, onLogout }) {
 
 // ─── APP ROOT ──────────────────────────────────────────────
 export default function App() {
-  const [tela, setTela]           = useState("splash");
-  const [aba, setAba]             = useState("dashboard");
-  const [usuario, setUsuario]     = useState(null);
-  const [obraSel, setObraSel]     = useState(null);
-  const [checandoAuth, setChecando] = useState(true);
+  const [usuario, setUsuario]   = useState(null);
+  const [aba, setAba]           = useState("dashboard");
+  const [obraSel, setObraSel]   = useState(null);
+  const [checando, setChecando] = useState(true);
 
   useEffect(() => {
-    // Verifica se já tem sessão ativa
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        carregarPerfil(session.user);
-      } else {
-        setChecando(false);
-        setTela("splash");
-      }
+      if (session?.user) carregarPerfil(session.user);
+      else setChecando(false);
     });
-
-    // Ouve mudanças de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        carregarPerfil(session.user);
-      } else {
-        setUsuario(null);
-        setTela("splash");
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.user) carregarPerfil(session.user);
+      else { setUsuario(null); setChecando(false); }
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -616,72 +842,42 @@ export default function App() {
     try {
       const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
       setUsuario({ ...user, ...data, email: user.email });
-      setTela("app");
     } catch {
-      setUsuario({ ...user, nome: user.email, perfil:"mestre" });
-      setTela("app");
-    } finally {
-      setChecando(false);
-    }
+      setUsuario({ ...user, nome: user.email?.split("@")[0], perfil:"mestre" });
+    } finally { setChecando(false); }
   };
 
-  if (checandoAuth) {
-    return (
-      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:T.fundo, fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
-        <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:48, marginBottom:16 }}>🏗️</div>
-          <div style={{ fontWeight:900, fontSize:24, letterSpacing:4, color:T.cinza1, marginBottom:16 }}>OBRAFÁCIL</div>
-          <Spinner />
-        </div>
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUsuario(null); setAba("dashboard"); setObraSel(null);
+  };
+
+  if (checando) return (
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:T.fundo, fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:48, marginBottom:16 }}>🏗️</div>
+        <div style={{ fontWeight:900, fontSize:24, letterSpacing:4, color:T.cinza1, marginBottom:16 }}>OBRAFÁCIL</div>
+        <Spinner />
       </div>
-    );
-  }
+    </div>
+  );
 
-  // SPLASH
-  if (tela === "splash") {
-    return (
-      <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif", maxWidth:430, margin:"0 auto", minHeight:"100vh", background:`linear-gradient(160deg,#1A1A1A 0%,#2D2008 100%)`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 32px", textAlign:"center" }}>
-        <div style={{ fontSize:52, marginBottom:16 }}>🏗️</div>
-        <div style={{ fontWeight:900, fontSize:34, letterSpacing:6, color:T.amarelo, marginBottom:4 }}>OBRAFÁCIL</div>
-        <div style={{ fontSize:13, color:"#666", letterSpacing:2, marginBottom:40 }}>CONTROLE DE OBRAS</div>
-        {[
-          { emoji:"✅", texto:"Checklist de tarefas para sua equipe" },
-          { emoji:"💰", texto:"Orçamentos profissionais em minutos"  },
-          { emoji:"📦", texto:"Alertas de estoque antes de faltar"    },
-        ].map((item,i) => (
-          <div key={i} style={{ display:"flex", alignItems:"center", gap:14, background:"rgba(255,255,255,0.05)", borderRadius:12, padding:"12px 16px", marginBottom:10, width:"100%", border:"1px solid rgba(255,255,255,0.08)", textAlign:"left" }}>
-            <span style={{ fontSize:20 }}>{item.emoji}</span>
-            <span style={{ fontSize:14, color:"#CCC", fontWeight:500 }}>{item.texto}</span>
-          </div>
-        ))}
-        <div style={{ width:"100%", marginTop:20 }}>
-          <button onClick={() => setTela("cadastro")} style={{ width:"100%", padding:"15px", border:"none", borderRadius:12, background:T.amarelo, color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", marginBottom:12, boxShadow:"0 4px 20px rgba(199,119,0,0.4)" }}>
-            🚀 Criar conta grátis
-          </button>
-          <button onClick={() => setTela("login")} style={{ width:"100%", padding:"15px", border:"1.5px solid rgba(255,255,255,0.2)", borderRadius:12, background:"transparent", color:"#DDD", fontSize:16, fontWeight:600, cursor:"pointer" }}>
-            Já tenho conta — Entrar
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (!usuario) return <TelaAuth onLogin={() => {}} />;
 
-  if (tela === "login")    return <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif" }}><TelaLogin onLogin={() => {}} onIrCadastro={() => setTela("cadastro")} /></div>;
-  if (tela === "cadastro") return <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif" }}><TelaCadastro onCadastrar={() => {}} onIrLogin={() => setTela("login")} /></div>;
-
-  // APP PRINCIPAL
   return (
     <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif", maxWidth:430, margin:"0 auto", minHeight:"100vh", background:T.fundo, display:"flex", flexDirection:"column" }}>
       <div style={{ flex:1, overflowY:"auto" }}>
         {obraSel ? (
-          <DetalheObra obra={obraSel} usuario={usuario} onVoltar={() => setObraSel(null)} />
+          <div style={{ padding:"16px 16px 100px" }}>
+            <Header titulo={obraSel.nome} subtitulo="← Obras" onVoltar={() => setObraSel(null)} />
+          </div>
         ) : (
           <>
             {aba==="dashboard" && <Dashboard usuario={usuario} nav={setAba} onObraClick={setObraSel} />}
-            {aba==="tarefas"   && <div style={{ padding:"80px 20px", textAlign:"center", color:T.cinza3 }}><div style={{ fontSize:40, marginBottom:12 }}>✅</div><div style={{ fontSize:16, fontWeight:700 }}>Tarefas</div><div style={{ fontSize:13, marginTop:8 }}>Selecione uma obra no Dashboard para ver as tarefas</div></div>}
-            {aba==="orcamento" && <div style={{ padding:"80px 20px", textAlign:"center", color:T.cinza3 }}><div style={{ fontSize:40, marginBottom:12 }}>💰</div><div style={{ fontSize:16, fontWeight:700 }}>Orçamentos</div><div style={{ fontSize:13, marginTop:8 }}>Em breve</div></div>}
-            {aba==="estoque"   && <div style={{ padding:"80px 20px", textAlign:"center", color:T.cinza3 }}><div style={{ fontSize:40, marginBottom:12 }}>📦</div><div style={{ fontSize:16, fontWeight:700 }}>Estoque</div><div style={{ fontSize:13, marginTop:8 }}>Em breve</div></div>}
-            {aba==="perfil"    && <Perfil usuario={usuario} onLogout={() => setTela("splash")} />}
+            {aba==="tarefas"   && <Tarefas   usuario={usuario} />}
+            {aba==="orcamento" && <Orcamentos usuario={usuario} />}
+            {aba==="estoque"   && <Estoque   usuario={usuario} />}
+            {aba==="perfil"    && <Perfil    usuario={usuario} onLogout={handleLogout} />}
           </>
         )}
       </div>
