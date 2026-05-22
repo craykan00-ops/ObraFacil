@@ -1286,7 +1286,7 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
     try {
       const { data: perfil, error: erroP } = await supabase.from("profiles").select("id, nome").eq("email", emailConvite.trim()).maybeSingle();
       if (erroP || !perfil) { alert("Usuário não encontrado com este e-mail."); return; }
-      const { error: erroI } = await supabase.from("obra_funcionarios").insert({ obra_id: obra.id, funcionario_id: perfil.id, adicionado_por: usuario.id });
+      const { error: erroI } = await supabase.from("obra_funcionarios").insert({ obra_id: obra.id, funcionario_id: perfil.id });
       if (erroI && !erroI.message?.includes("duplicate") && !erroI.message?.includes("unique")) throw erroI;
       await supabase.from("notificacoes").insert({ usuario_id: perfil.id, tipo:"convite_obra", mensagem:`Você foi convidado para a obra "${obra.nome}"`, obra_id: obra.id });
       alert(`✅ ${perfil.nome || emailConvite} convidado com sucesso!`);
