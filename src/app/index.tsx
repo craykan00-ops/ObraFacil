@@ -1291,6 +1291,13 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
     }
   };
 
+  const excluirFoto = async (nome: string) => {
+    if (!window.confirm("Excluir esta foto?")) return;
+    const { error } = await supabase.storage.from("fotos-tarefas").remove([`obras/${obra.id}/${nome}`]);
+    if (error) { alert("Erro ao excluir foto: " + error.message); return; }
+    await carregarFotos();
+  };
+
   const excluir = async () => {
     setExcluindo(true);
     try {
@@ -1414,9 +1421,15 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
             ) : (
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 {fotos.map((f: any, i: number) => (
-                  <a key={i} href={f.url} target="_blank" rel="noreferrer" style={{ display:"block", borderRadius:12, overflow:"hidden", border:`1px solid ${T.cinzaBorda}`, aspectRatio:"1/1", background:"#EEE" }}>
-                    <img src={f.url} alt={f.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                  </a>
+                  <div key={i} style={{ position:"relative", borderRadius:12, overflow:"hidden", border:`1px solid ${T.cinzaBorda}`, aspectRatio:"1/1", background:"#EEE" }}>
+                    <a href={f.url} target="_blank" rel="noreferrer" style={{ display:"block", width:"100%", height:"100%" }}>
+                      <img src={f.url} alt={f.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    </a>
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); excluirFoto(f.name); }}
+                      style={{ position:"absolute", top:6, right:6, width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}
+                    >🗑</button>
+                  </div>
                 ))}
               </div>
             )}
