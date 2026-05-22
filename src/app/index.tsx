@@ -910,7 +910,9 @@ function Estoque({ usuario, onVoltar }) {
 }
 
 // ─── PERFIL ────────────────────────────────────────────────
-function Perfil({ usuario, onLogout, onVoltar }) {
+const PLANO_LABEL: Record<string, string> = { gratis:"🪚 Grátis", autonomo:"🔨 Autônomo", mestre:"👑 Mestre" };
+
+function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
   const [tela, setTela]         = useState("menu"); // menu | editar | planos | notificacoes | ajuda | senha
   const [nome, setNome]         = useState(usuario.nome || "");
   const [telefone, setTelefone] = useState(usuario.telefone || "");
@@ -920,6 +922,25 @@ function Perfil({ usuario, onLogout, onVoltar }) {
   const [novaSenha, setNovaSenha]     = useState("");
   const [confirmar, setConfirmar]     = useState("");
   const [erroSenha, setErroSenha]     = useState("");
+
+  // ── SINCRONIZAR PLANO ─────────────────────────────────────
+  const sincronizarPlano = async () => {
+    setSalvando(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        "https://puwebhhkuehlkswycqtz.supabase.co/functions/v1/verificar-pagamento",
+        { method: "POST", headers: { "Authorization": `Bearer ${session.access_token}` } }
+      );
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      onPlanoAtualizado(json.plano);
+      setSucesso(`✅ Plano atualizado: ${PLANO_LABEL[json.plano] || json.plano}`);
+      setTimeout(() => setSucesso(""), 3000);
+    } catch (e: any) {
+      alert("Erro ao sincronizar: " + (e?.message || "tente novamente"));
+    } finally { setSalvando(false); }
+  };
 
   // ── STRIPE ────────────────────────────────────────────────
   const assinar = async (priceId) => {
@@ -997,14 +1018,18 @@ function Perfil({ usuario, onLogout, onVoltar }) {
         </div>
 
         {/* Plano atual */}
-        <div onClick={() => setTela("planos")} style={{ background:`linear-gradient(135deg, ${T.cinza1} 0%, #2D2D2D 100%)`, borderRadius:14, padding:18, marginBottom:20, cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ background:`linear-gradient(135deg, ${T.cinza1} 0%, #2D2D2D 100%)`, borderRadius:14, padding:18, marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <div style={{ fontSize:11, color:"#888", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Plano atual</div>
-            <div style={{ fontSize:18, fontWeight:800, color:T.amarelo }}>🪚 Grátis</div>
-            <div style={{ fontSize:12, color:"#AAA", marginTop:3 }}>Upgrade para desbloquear mais recursos</div>
+            <div style={{ fontSize:18, fontWeight:800, color:T.amarelo }}>{PLANO_LABEL[usuario.plano||"gratis"]}</div>
+            <div style={{ fontSize:12, color:"#AAA", marginTop:3 }}>{usuario.plano && usuario.plano !== "gratis" ? "Plano ativo ✓" : "Upgrade para desbloquear mais recursos"}</div>
           </div>
-          <div style={{ background:T.amarelo, color:"#fff", fontSize:12, fontWeight:700, padding:"8px 14px", borderRadius:10 }}>Upgrade →</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"flex-end" }}>
+            <div onClick={() => setTela("planos")} style={{ background:T.amarelo, color:"#fff", fontSize:12, fontWeight:700, padding:"8px 14px", borderRadius:10, cursor:"pointer" }}>Planos →</div>
+            <div onClick={sincronizarPlano} style={{ background:"rgba(255,255,255,0.1)", color:"#CCC", fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:8, cursor:"pointer" }}>🔄 Sincronizar</div>
+          </div>
         </div>
+        {sucesso && <div style={{ background:T.verdeC, color:T.verde, padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:12 }}>{sucesso}</div>}
 
         {/* Opções */}
         <div style={{ marginBottom:8 }}>
@@ -1133,7 +1158,7 @@ function Perfil({ usuario, onLogout, onVoltar }) {
       <div style={{ padding:"20px 16px 100px" }}>
         <div style={{ textAlign:"center", marginBottom:24 }}>
           <div style={{ fontSize:13, color:T.cinza3, marginBottom:4 }}>Plano atual</div>
-          <div style={{ fontSize:22, fontWeight:800, color:T.cinza1 }}>🪚 Grátis</div>
+          <div style={{ fontSize:22, fontWeight:800, color:T.cinza1 }}>{PLANO_LABEL[usuario.plano||"gratis"]}</div>
         </div>
 
         {[
@@ -1531,7 +1556,7 @@ export default function App() {
             {aba==="tarefas"   && <Tarefas   usuario={usuario} onVoltar={() => setAba("dashboard")} />}
             {aba==="orcamento" && <Orcamentos usuario={usuario} onVoltar={() => setAba("dashboard")} />}
             {aba==="estoque"   && <Estoque   usuario={usuario} onVoltar={() => setAba("dashboard")} />}
-            {aba==="perfil"    && <Perfil    usuario={usuario} onLogout={handleLogout} onVoltar={() => setAba("dashboard")} />}
+            {aba==="perfil"    && <Perfil    usuario={usuario} onLogout={handleLogout} onVoltar={() => setAba("dashboard")} onPlanoAtualizado={(plano) => setUsuario((prev: any) => ({ ...prev, plano }))} />}
           </>
         )}
       </div>
