@@ -1233,6 +1233,7 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
   const [aba, setAba]               = useState("tarefas");
   const [tarefas, setTarefas]       = useState([]);
   const [fotos, setFotos]           = useState([]);
+  const [membros, setMembros]       = useState([]);
   const [loading, setLoading]       = useState(true);
   const [loadingFotos, setLoadingFotos] = useState(false);
   const [modalConvidar, setModalConvidar] = useState(false);
@@ -1245,6 +1246,11 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
     setLoading(true);
     supabase.from("tarefas").select("*").eq("obra_id", obra.id).order("criado_em", { ascending:true })
       .then(({ data }) => { setTarefas(data || []); setLoading(false); });
+  }, [obra.id]);
+
+  const carregarMembros = useCallback(async () => {
+    const { data } = await supabase.rpc("get_obra_membros", { p_obra_id: obra.id });
+    setMembros(data || []);
   }, [obra.id]);
 
   const carregarFotos = useCallback(async () => {
@@ -1261,6 +1267,7 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
   }, [obra.id]);
 
   useEffect(() => { carregarTarefas(); }, [carregarTarefas]);
+  useEffect(() => { carregarMembros(); }, [carregarMembros]);
   useEffect(() => { if (aba === "fotos") carregarFotos(); }, [aba, carregarFotos]);
 
   const adicionarFoto = async (e: any) => {
@@ -1321,6 +1328,25 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
           </div>
           <ProgBar valor={obra.progresso||0} cor={st.cor} />
         </div>
+
+        {membros.length > 0 && (
+          <div style={{ background:T.fundoCard, borderRadius:14, padding:16, border:`1px solid ${T.cinzaBorda}`, marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:T.cinza1, marginBottom:12 }}>👷 Equipe ({membros.length})</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {membros.map((m: any, i: number) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:17, background:`linear-gradient(135deg,${T.amarelo},${T.laranja})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                    {(m.nome||"?").split(" ").map((n: string) => n[0]).join("").slice(0,2).toUpperCase()}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:T.cinza1 }}>{m.nome || "—"}</div>
+                    <div style={{ fontSize:11, color:T.cinza3 }}>{m.perfil === "mestre" ? "👑 Mestre" : "👷 Funcionário"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ display:"flex", gap:8, marginBottom:16 }}>
           {[{ id:"tarefas", emoji:"✅", label:"Tarefas" },{ id:"fotos", emoji:"📸", label:"Fotos" }].map(tab => (
