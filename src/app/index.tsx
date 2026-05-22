@@ -515,8 +515,11 @@ function Orcamentos({ usuario }) {
     if (!novo.cliente_nome.trim()) return;
     setSalvando(true);
     try {
-      await supabase.from("orcamentos").insert({ ...novo, status:"rascunho", criado_por: usuario.id, total_geral:0 });
+      const { error } = await supabase.from("orcamentos").insert({ ...novo, status:"rascunho", criado_por: usuario.id, total_geral:0 });
+      if (error) throw error;
       setModal(false); setNovo({ cliente_nome:"", cliente_telefone:"", endereco_obra:"", descricao:"" }); carregar();
+    } catch (e) {
+      alert("Erro ao criar orçamento: " + (e?.message || "tente novamente"));
     } finally { setSalvando(false); }
   };
 
