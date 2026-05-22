@@ -785,39 +785,302 @@ function Estoque({ usuario }) {
 }
 
 // ─── PERFIL ────────────────────────────────────────────────
+function Perfil({ usuario, onLogout })// ============================================================
+// SUBSTITUI A FUNÇÃO Perfil NO src/app/index.tsx
+// ============================================================
+// Encontra:   function Perfil({ usuario, onLogout }) {
+// Substitui toda a função até o fechamento }
+// ============================================================
+
 function Perfil({ usuario, onLogout }) {
-  return (
+  const [tela, setTela]         = useState("menu"); // menu | editar | planos | notificacoes | ajuda | senha
+  const [nome, setNome]         = useState(usuario.nome || "");
+  const [telefone, setTelefone] = useState(usuario.telefone || "");
+  const [salvando, setSalvando] = useState(false);
+  const [sucesso, setSucesso]   = useState("");
+  const [senhaAtual, setSenhaAtual]   = useState("");
+  const [novaSenha, setNovaSenha]     = useState("");
+  const [confirmar, setConfirmar]     = useState("");
+  const [erroSenha, setErroSenha]     = useState("");
+
+  // ── EDITAR PERFIL ─────────────────────────────────────────
+  const salvarPerfil = async () => {
+    setSalvando(true);
+    try {
+      await supabase.from("profiles").update({ nome, telefone }).eq("id", usuario.id);
+      setSucesso("Perfil atualizado com sucesso!");
+      setTimeout(() => { setSucesso(""); setTela("menu"); }, 1500);
+    } catch (e) {
+      setSucesso("Erro ao salvar. Tente novamente.");
+    } finally { setSalvando(false); }
+  };
+
+  // ── ALTERAR SENHA ─────────────────────────────────────────
+  const alterarSenha = async () => {
+    if (novaSenha.length < 6) { setErroSenha("Senha mínimo 6 caracteres"); return; }
+    if (novaSenha !== confirmar) { setErroSenha("As senhas não coincidem"); return; }
+    setSalvando(true); setErroSenha("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: novaSenha });
+      if (error) throw error;
+      setSucesso("Senha alterada com sucesso!");
+      setSenhaAtual(""); setNovaSenha(""); setConfirmar("");
+      setTimeout(() => { setSucesso(""); setTela("menu"); }, 1500);
+    } catch (e) {
+      setErroSenha("Erro ao alterar senha. Tente novamente.");
+    } finally { setSalvando(false); }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    onLogout();
+  };
+
+  // ── MENU PRINCIPAL ────────────────────────────────────────
+  if (tela === "menu") return (
     <>
       <Header titulo="Perfil" subtitulo="👤 Conta" />
       <div style={{ padding:"16px 16px 100px" }}>
+
+        {/* Avatar e dados */}
         <div style={{ textAlign:"center", marginBottom:24 }}>
-          <div style={{ width:72, height:72, borderRadius:36, background:T.amarelo, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", fontSize:26, fontWeight:700, color:"#fff" }}>
+          <div style={{ width:80, height:80, borderRadius:40, background:`linear-gradient(135deg, ${T.amarelo}, ${T.laranja})`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", fontSize:30, fontWeight:700, color:"#fff", boxShadow:`0 4px 20px ${T.amarelo}40` }}>
             {usuario.nome?.split(" ").map(n=>n[0]).join("").slice(0,2)||"MJ"}
           </div>
-          <div style={{ fontSize:20, fontWeight:800, color:T.cinza1 }}>{usuario.nome}</div>
+          <div style={{ fontSize:22, fontWeight:800, color:T.cinza1 }}>{usuario.nome}</div>
           <div style={{ fontSize:13, color:T.cinza3, marginTop:3 }}>{usuario.email}</div>
-          <div style={{ display:"inline-block", marginTop:8, background:T.amareloC, color:T.amarelo, fontSize:12, fontWeight:700, padding:"4px 14px", borderRadius:20 }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:6, marginTop:10, background:T.amareloC, color:T.amarelo, fontSize:12, fontWeight:700, padding:"5px 14px", borderRadius:20 }}>
             {usuario.perfil==="mestre" ? "👑 Mestre" : "👷 Funcionário"}
           </div>
         </div>
-        {[{ emoji:"👤", label:"Editar perfil" },{ emoji:"🔔", label:"Notificações" },{ emoji:"💰", label:"Planos e preços" },{ emoji:"❓", label:"Ajuda" }].map((item,i) => (
-          <div key={i} style={{ display:"flex", alignItems:"center", gap:14, background:T.fundoCard, borderRadius:12, padding:"14px 16px", marginBottom:8, border:`1px solid ${T.cinzaBorda}`, cursor:"pointer" }}
-            onMouseEnter={e=>e.currentTarget.style.borderColor=T.amarelo+"60"}
-            onMouseLeave={e=>e.currentTarget.style.borderColor=T.cinzaBorda}
-          >
-            <span style={{ fontSize:20 }}>{item.emoji}</span>
-            <span style={{ flex:1, fontSize:14, fontWeight:500, color:T.cinza1 }}>{item.label}</span>
-            <span style={{ color:T.cinza3 }}>›</span>
+
+        {/* Plano atual */}
+        <div onClick={() => setTela("planos")} style={{ background:`linear-gradient(135deg, ${T.cinza1} 0%, #2D2D2D 100%)`, borderRadius:14, padding:18, marginBottom:20, cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontSize:11, color:"#888", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Plano atual</div>
+            <div style={{ fontSize:18, fontWeight:800, color:T.amarelo }}>🪚 Grátis</div>
+            <div style={{ fontSize:12, color:"#AAA", marginTop:3 }}>Upgrade para desbloquear mais recursos</div>
           </div>
-        ))}
-        <div onClick={onLogout} style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:T.vermelhoC, borderRadius:12, padding:"14px", marginTop:8, cursor:"pointer" }}>
+          <div style={{ background:T.amarelo, color:"#fff", fontSize:12, fontWeight:700, padding:"8px 14px", borderRadius:10 }}>Upgrade →</div>
+        </div>
+
+        {/* Opções */}
+        <div style={{ marginBottom:8 }}>
+          {[
+            { emoji:"👤", label:"Editar perfil",    desc:"Nome e telefone",        tela:"editar"        },
+            { emoji:"🔒", label:"Alterar senha",     desc:"Mude sua senha de acesso", tela:"senha"       },
+            { emoji:"🔔", label:"Notificações",      desc:"Alertas e avisos",       tela:"notificacoes"  },
+            { emoji:"💰", label:"Planos e preços",   desc:"Gerencie sua assinatura", tela:"planos"       },
+            { emoji:"❓", label:"Central de ajuda",  desc:"Dúvidas frequentes",      tela:"ajuda"        },
+          ].map((item,i) => (
+            <div key={i} onClick={() => setTela(item.tela)} style={{ display:"flex", alignItems:"center", gap:14, background:T.fundoCard, borderRadius:12, padding:"14px 16px", marginBottom:8, border:`1px solid ${T.cinzaBorda}`, cursor:"pointer", transition:"all 0.2s" }}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=T.amarelo+"60"; e.currentTarget.style.transform="translateX(4px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.cinzaBorda; e.currentTarget.style.transform="translateX(0)";}}
+            >
+              <div style={{ width:40, height:40, borderRadius:12, background:T.amareloC, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{item.emoji}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:600, color:T.cinza1 }}>{item.label}</div>
+                <div style={{ fontSize:12, color:T.cinza3, marginTop:2 }}>{item.desc}</div>
+              </div>
+              <span style={{ color:T.cinza3, fontSize:18 }}>›</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Sair */}
+        <div onClick={handleLogout} style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, background:T.vermelhoC, borderRadius:12, padding:"15px", border:`1px solid ${T.vermelho}30`, cursor:"pointer" }}>
           <span style={{ fontSize:20 }}>🚪</span>
-          <span style={{ fontSize:14, fontWeight:700, color:T.vermelho }}>Sair da conta</span>
+          <span style={{ fontSize:15, fontWeight:700, color:T.vermelho }}>Sair da conta</span>
+        </div>
+
+        {/* Versão */}
+        <div style={{ textAlign:"center", marginTop:20, fontSize:12, color:T.cinza3 }}>ObraFácil v1.0 BETA · Feito 🇧🇷</div>
+      </div>
+    </>
+  );
+
+  // ── EDITAR PERFIL ─────────────────────────────────────────
+  if (tela === "editar") return (
+    <>
+      <Header titulo="Editar Perfil" onVoltar={() => setTela("menu")} />
+      <div style={{ padding:"24px 20px" }}>
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <div style={{ width:72, height:72, borderRadius:36, background:`linear-gradient(135deg, ${T.amarelo}, ${T.laranja})`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", fontSize:26, fontWeight:700, color:"#fff" }}>
+            {nome?.split(" ").map(n=>n[0]).join("").slice(0,2)||"MJ"}
+          </div>
+        </div>
+        <Input label="Nome completo" value={nome} onChange={e=>setNome(e.target.value)} placeholder="Seu nome" />
+        <Input label="Telefone / WhatsApp" value={telefone} onChange={e=>setTelefone(e.target.value)} placeholder="(11) 99999-0000" />
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>E-mail</div>
+          <div style={{ padding:"13px 14px", borderRadius:12, background:"#F0F0F0", border:`1px solid ${T.cinzaBorda}`, fontSize:15, color:T.cinza3 }}>{usuario.email}</div>
+          <div style={{ fontSize:11, color:T.cinza3, marginTop:4 }}>O e-mail não pode ser alterado</div>
+        </div>
+        {sucesso && <div style={{ background: sucesso.includes("Erro") ? T.vermelhoC : T.verdeC, color: sucesso.includes("Erro") ? T.vermelho : T.verde, padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:16 }}>{sucesso}</div>}
+        <Btn onClick={salvarPerfil} loading={salvando} disabled={!nome.trim()}>💾 Salvar alterações</Btn>
+      </div>
+    </>
+  );
+
+  // ── ALTERAR SENHA ─────────────────────────────────────────
+  if (tela === "senha") return (
+    <>
+      <Header titulo="Alterar Senha" onVoltar={() => setTela("menu")} />
+      <div style={{ padding:"24px 20px" }}>
+        <div style={{ background:T.amareloC, border:`1px solid ${T.amarelo}30`, borderRadius:12, padding:"12px 16px", marginBottom:24, fontSize:13, color:T.cinza2, lineHeight:1.5 }}>
+          🔒 Use uma senha forte com letras e números. Mínimo 6 caracteres.
+        </div>
+        <Input label="Nova senha" type="password" value={novaSenha} onChange={e=>setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+        {novaSenha.length > 0 && (
+          <div style={{ marginTop:-8, marginBottom:16 }}>
+            <div style={{ display:"flex", gap:4, marginBottom:4 }}>
+              {[1,2,3,4].map(n => {
+                const forca = novaSenha.length < 4 ? 1 : novaSenha.length < 6 ? 2 : novaSenha.length < 10 ? 3 : 4;
+                const cores = [T.vermelho, T.laranja, T.amarelo, T.verde];
+                return <div key={n} style={{ flex:1, height:4, borderRadius:2, background: n <= forca ? cores[forca-1] : T.cinzaBorda, transition:"background 0.3s" }} />;
+              })}
+            </div>
+            <div style={{ fontSize:11, color:T.cinza3 }}>
+              {novaSenha.length < 4 ? "Muito fraca" : novaSenha.length < 6 ? "Fraca" : novaSenha.length < 10 ? "Boa" : "Forte 💪"}
+            </div>
+          </div>
+        )}
+        <Input label="Confirmar nova senha" type="password" value={confirmar} onChange={e=>setConfirmar(e.target.value)} placeholder="Repita a senha" />
+        {erroSenha && <div style={{ background:T.vermelhoC, color:T.vermelho, padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:16 }}>⚠️ {erroSenha}</div>}
+        {sucesso && <div style={{ background:T.verdeC, color:T.verde, padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:16 }}>{sucesso}</div>}
+        <Btn onClick={alterarSenha} loading={salvando} disabled={!novaSenha||!confirmar}>🔒 Alterar senha</Btn>
+      </div>
+    </>
+  );
+
+  // ── NOTIFICAÇÕES ──────────────────────────────────────────
+  if (tela === "notificacoes") return (
+    <>
+      <Header titulo="Notificações" onVoltar={() => setTela("menu")} />
+      <div style={{ padding:"24px 20px" }}>
+        {[
+          { titulo:"Alertas de estoque",    desc:"Avisa quando material estiver baixo",   ativo:true  },
+          { titulo:"Tarefas atrasadas",     desc:"Lembrete de tarefas pendentes",          ativo:true  },
+          { titulo:"Novidades do app",      desc:"Atualizações e novas funcionalidades",   ativo:false },
+          { titulo:"Relatório semanal",     desc:"Resumo da semana por e-mail",            ativo:false },
+        ].map((item, i) => {
+          const [ativo, setAtivo] = useState(item.ativo);
+          return (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:14, background:T.fundoCard, borderRadius:12, padding:"16px", marginBottom:10, border:`1px solid ${T.cinzaBorda}` }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:600, color:T.cinza1 }}>{item.titulo}</div>
+                <div style={{ fontSize:12, color:T.cinza3, marginTop:3 }}>{item.desc}</div>
+              </div>
+              <div onClick={() => setAtivo(p=>!p)} style={{ width:48, height:26, borderRadius:13, background: ativo ? T.amarelo : T.cinzaBorda, cursor:"pointer", position:"relative", transition:"background 0.3s", flexShrink:0 }}>
+                <div style={{ position:"absolute", top:3, left: ativo ? 24 : 3, width:20, height:20, borderRadius:10, background:"#fff", transition:"left 0.3s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }} />
+              </div>
+            </div>
+          );
+        })}
+        <div style={{ marginTop:20, padding:16, background:T.amareloC, borderRadius:12, fontSize:13, color:T.cinza2, lineHeight:1.6 }}>
+          📧 Notificações por e-mail são enviadas para <strong>{usuario.email}</strong>
         </div>
       </div>
     </>
   );
+
+  // ── PLANOS ────────────────────────────────────────────────
+  if (tela === "planos") return (
+    <>
+      <Header titulo="Planos e Preços" onVoltar={() => setTela("menu")} />
+      <div style={{ padding:"20px 16px 100px" }}>
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <div style={{ fontSize:13, color:T.cinza3, marginBottom:4 }}>Plano atual</div>
+          <div style={{ fontSize:22, fontWeight:800, color:T.cinza1 }}>🪚 Grátis</div>
+        </div>
+
+        {[
+          { id:"gratis", nome:"🪚 Grátis", preco:"R$ 0", periodo:"para sempre", cor:T.verde, recursos:["1 obra ativa","Checklist básico","Até 2 funcionários"], atual:true },
+          { id:"autonomo", nome:"🔨 Autônomo", preco:"R$ 47", periodo:"/mês", cor:T.amarelo, recursos:["3 obras simultâneas","Até 3 funcionários","Checklist + fotos","5 orçamentos/mês","Controle de estoque"], destaque:true },
+          { id:"mestre", nome:"👑 Mestre", preco:"R$ 97", periodo:"/mês", cor:T.cinza1, recursos:["Obras ilimitadas","Até 15 funcionários","Orçamentos ilimitados + PDF","Financeiro completo","Relatórios"] },
+        ].map((plano,i) => (
+          <div key={i} style={{ background:T.fundoCard, borderRadius:16, padding:24, marginBottom:14, border:`2px solid ${plano.destaque ? T.amarelo : plano.atual ? T.verde : T.cinzaBorda}`, position:"relative", boxShadow: plano.destaque ? `0 4px 20px ${T.amarelo}20` : "none" }}>
+            {plano.destaque && <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:T.amarelo, color:"#fff", fontSize:11, fontWeight:700, padding:"4px 14px", borderRadius:20 }}>⭐ Mais popular</div>}
+            {plano.atual && <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:T.verde, color:"#fff", fontSize:11, fontWeight:700, padding:"4px 14px", borderRadius:20 }}>✓ Plano atual</div>}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
+              <div style={{ fontSize:18, fontWeight:800, color: plano.destaque ? T.amarelo : T.cinza1 }}>{plano.nome}</div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:26, fontWeight:900, color: plano.destaque ? T.amarelo : T.cinza1 }}>{plano.preco}</div>
+                <div style={{ fontSize:12, color:T.cinza3 }}>{plano.periodo}</div>
+              </div>
+            </div>
+            {plano.recursos.map((r,j) => (
+              <div key={j} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                <span style={{ color: plano.destaque ? T.amarelo : T.verde, fontWeight:700 }}>✓</span>
+                <span style={{ fontSize:13, color:T.cinza2 }}>{r}</span>
+              </div>
+            ))}
+            {!plano.atual && (
+              <button style={{ width:"100%", marginTop:16, padding:"12px", border:"none", borderRadius:10, background: plano.destaque ? T.amarelo : T.cinza1, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                {plano.destaque ? "Assinar agora →" : "Começar teste grátis"}
+              </button>
+            )}
+          </div>
+        ))}
+
+        <div style={{ textAlign:"center", padding:"16px", fontSize:13, color:T.cinza3 }}>
+          ✓ Cancele quando quiser &nbsp;·&nbsp; ✓ Sem multa &nbsp;·&nbsp; ✓ Suporte BR
+        </div>
+      </div>
+    </>
+  );
+
+  // ── AJUDA ─────────────────────────────────────────────────
+  if (tela === "ajuda") return (
+    <>
+      <Header titulo="Central de Ajuda" onVoltar={() => setTela("menu")} />
+      <div style={{ padding:"20px 16px 100px" }}>
+
+        <div style={{ background:`linear-gradient(135deg, ${T.amarelo}, ${T.laranja})`, borderRadius:14, padding:20, marginBottom:24, textAlign:"center" }}>
+          <div style={{ fontSize:32, marginBottom:8 }}>👷</div>
+          <div style={{ fontSize:16, fontWeight:700, color:"#fff", marginBottom:4 }}>Precisa de ajuda?</div>
+          <div style={{ fontSize:13, color:"rgba(255,255,255,0.8)" }}>Fale com a gente pelo WhatsApp</div>
+          <button style={{ marginTop:14, padding:"10px 24px", background:"#fff", border:"none", borderRadius:10, color:T.amarelo, fontWeight:700, fontSize:14, cursor:"pointer" }}>
+            📱 Chamar no WhatsApp
+          </button>
+        </div>
+
+        <div style={{ fontSize:14, fontWeight:700, color:T.cinza1, marginBottom:14 }}>Dúvidas frequentes</div>
+
+        {[
+          { p:"Como adicionar funcionários?",     r:"Vá em uma obra, clique em equipe e convide pelo e-mail do funcionário. Ele precisa ter uma conta no ObraFácil." },
+          { p:"Como funciona o checklist?",       r:"Crie tarefas para cada obra e atribua para um funcionário. Ele marca como concluído pelo celular e você vê em tempo real." },
+          { p:"Meus dados estão seguros?",        r:"Sim! Usamos Supabase com criptografia de ponta a ponta. Seus dados nunca são compartilhados com terceiros." },
+          { p:"Posso usar sem internet na obra?", r:"O app funciona offline para visualizar tarefas. Quando voltar a internet, tudo sincroniza automaticamente." },
+          { p:"Como cancelar minha assinatura?",  r:"Acesse Planos e Preços e clique em cancelar. Sem burocracia, sem multa. Seus dados ficam por 30 dias." },
+        ].map((faq, i) => {
+          const [aberto, setAberto] = useState(false);
+          return (
+            <div key={i} style={{ background:T.fundoCard, borderRadius:12, marginBottom:8, border:`1px solid ${T.cinzaBorda}`, overflow:"hidden" }}>
+              <div onClick={() => setAberto(p=>!p)} style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
+                <span style={{ fontSize:14, fontWeight:600, color:T.cinza1, flex:1, paddingRight:10 }}>{faq.p}</span>
+                <span style={{ color:T.amarelo, fontSize:16, transition:"transform 0.3s", transform: aberto ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+              </div>
+              {aberto && (
+                <div style={{ padding:"0 16px 14px", fontSize:13, color:T.cinza2, lineHeight:1.6, borderTop:`1px solid ${T.cinzaBorda}`, paddingTop:12 }}>
+                  {faq.r}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div style={{ marginTop:20, textAlign:"center" }}>
+          <div style={{ fontSize:13, color:T.cinza3, marginBottom:8 }}>Versão 1.0 BETA</div>
+          <div style={{ fontSize:12, color:T.cinza3 }}>Feito com 🧱 para mestres de obras do Brasil</div>
+        </div>
+      </div>
+    </>
+  );
+
+  return null;
 }
+
 
 // ─── APP ROOT ──────────────────────────────────────────────
 export default function App() {
