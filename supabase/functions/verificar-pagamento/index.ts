@@ -12,12 +12,20 @@ const PRICE_PLANO: Record<string, string> = {
   "price_1TZj9FJurcE85L58BNSZMVpO": "mestre",
 };
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS });
 
   const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-  if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS });
 
   try {
     // Busca cliente no Stripe pelo e-mail
@@ -49,11 +57,8 @@ Deno.serve(async (req) => {
     // Atualiza o banco
     await supabase.from("profiles").update({ plano }).eq("id", user.id);
 
-    return new Response(JSON.stringify({ plano }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ plano }), { status: 200, headers: CORS });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
   }
 });
