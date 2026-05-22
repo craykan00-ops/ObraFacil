@@ -1417,6 +1417,9 @@ export default function App() {
   const carregarPerfil = async (user) => {
     try {
       const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      if (!data?.email) {
+        await supabase.from("profiles").update({ email: user.email }).eq("id", user.id);
+      }
       setUsuario({ ...user, ...data, email: user.email });
     } catch {
       setUsuario({ ...user, nome: user.email?.split("@")[0], perfil:"mestre" });
