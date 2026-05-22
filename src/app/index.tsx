@@ -927,15 +927,10 @@ function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
   const sincronizarPlano = async () => {
     setSalvando(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        "https://puwebhhkuehlkswycqtz.supabase.co/functions/v1/verificar-pagamento",
-        { method: "POST", headers: { "Authorization": `Bearer ${session.access_token}` } }
-      );
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      onPlanoAtualizado(json.plano);
-      setSucesso(`✅ Plano atualizado: ${PLANO_LABEL[json.plano] || json.plano}`);
+      const { data, error } = await (supabase.functions as any).invoke("verificar-pagamento");
+      if (error) throw error;
+      onPlanoAtualizado(data.plano);
+      setSucesso(`✅ Plano atualizado: ${PLANO_LABEL[data.plano] || data.plano}`);
       setTimeout(() => setSucesso(""), 3000);
     } catch (e: any) {
       alert("Erro ao sincronizar: " + (e?.message || "tente novamente"));
