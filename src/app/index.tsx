@@ -792,6 +792,13 @@ function Perfil({ usuario, onLogout })// =======================================
 // Substitui toda a função até o fechamento }
 // ============================================================
 
+function Perfil({ usuario, onLogout })// ============================================================
+// SUBSTITUI A FUNÇÃO Perfil NO src/app/index.tsx
+// ============================================================
+// Encontra:   function Perfil({ usuario, onLogout }) {
+// Substitui toda a função até o fechamento }
+// ============================================================
+
 function Perfil({ usuario, onLogout }) {
   const [tela, setTela]         = useState("menu"); // menu | editar | planos | notificacoes | ajuda | senha
   const [nome, setNome]         = useState(usuario.nome || "");
@@ -802,6 +809,30 @@ function Perfil({ usuario, onLogout }) {
   const [novaSenha, setNovaSenha]     = useState("");
   const [confirmar, setConfirmar]     = useState("");
   const [erroSenha, setErroSenha]     = useState("");
+
+  // ── STRIPE ────────────────────────────────────────────────
+  const assinar = async (priceId) => {
+    setSalvando(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        "https://puwebhhkuehlkswycqtz.supabase.co/functions/v1/criar-pagamento",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ priceId }),
+        }
+      );
+      const { url, error } = await response.json();
+      if (error) throw new Error(error);
+      window.location.href = url;
+    } catch (e) {
+      alert("Erro ao processar pagamento. Tente novamente.");
+    } finally { setSalvando(false); }
+  };
 
   // ── EDITAR PERFIL ─────────────────────────────────────────
   const salvarPerfil = async () => {
@@ -1016,8 +1047,11 @@ function Perfil({ usuario, onLogout }) {
               </div>
             ))}
             {!plano.atual && (
-              <button style={{ width:"100%", marginTop:16, padding:"12px", border:"none", borderRadius:10, background: plano.destaque ? T.amarelo : T.cinza1, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
-                {plano.destaque ? "Assinar agora →" : "Começar teste grátis"}
+              <button
+                onClick={() => assinar(plano.id === "autonomo" ? "price_1TZUWCJurcE85L58yJt335ho" : "price_1TZUWsJurcE85L58IlSTt906")}
+                disabled={salvando}
+                style={{ width:"100%", marginTop:16, padding:"12px", border:"none", borderRadius:10, background: plano.destaque ? T.amarelo : T.cinza1, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", opacity: salvando ? 0.7 : 1 }}>
+                {salvando ? "⏳ Aguarde..." : plano.destaque ? "Assinar agora →" : "Começar teste grátis"}
               </button>
             )}
           </div>
@@ -1080,6 +1114,7 @@ function Perfil({ usuario, onLogout }) {
 
   return null;
 }
+
 
 
 // ─── APP ROOT ──────────────────────────────────────────────
