@@ -268,8 +268,20 @@ function Dashboard({ usuario, nav, onObraClick }) {
         const { data } = await supabase.from("obras").select("*").in("id", ids).order("criado_em", { ascending:false });
         setObras(data || []);
       } else {
-        const { data } = await supabase.from("obras").select("*").eq("dono_id", usuario.id).order("criado_em", { ascending:false });
-        setObras(data || []);
+        const [{ data: proprias }, { data: vincs }] = await Promise.all([
+          supabase.from("obras").select("*").eq("dono_id", usuario.id),
+          supabase.from("obra_funcionarios").select("obra_id").eq("funcionario_id", usuario.id),
+        ]);
+        const idsConvite = (vincs || []).map((v: any) => v.obra_id);
+        let convidadas: any[] = [];
+        if (idsConvite.length > 0) {
+          const { data } = await supabase.from("obras").select("*").in("id", idsConvite);
+          convidadas = data || [];
+        }
+        const todas = [...(proprias || []), ...convidadas]
+          .filter((o, i, arr) => arr.findIndex(x => x.id === o.id) === i)
+          .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
+        setObras(todas);
       }
     } finally { setLoading(false); }
   }, [usuario.id, ehFunc]);
@@ -419,9 +431,20 @@ function Tarefas({ usuario, onVoltar }) {
         });
       });
     } else {
-      supabase.from("obras").select("*").eq("dono_id", usuario.id).then(({ data }) => {
-        setObras(data || []);
-        if (data?.length > 0) setObraSel(data[0].id);
+      Promise.all([
+        supabase.from("obras").select("*").eq("dono_id", usuario.id),
+        supabase.from("obra_funcionarios").select("obra_id").eq("funcionario_id", usuario.id),
+      ]).then(async ([{ data: proprias }, { data: vincs }]) => {
+        const ids = (vincs || []).map((v: any) => v.obra_id);
+        let convidadas: any[] = [];
+        if (ids.length > 0) {
+          const { data } = await supabase.from("obras").select("*").in("id", ids);
+          convidadas = data || [];
+        }
+        const todas = [...(proprias || []), ...convidadas]
+          .filter((o, i, arr) => arr.findIndex(x => x.id === o.id) === i);
+        setObras(todas);
+        if (todas.length > 0) setObraSel(todas[0].id);
       });
     }
   }, [usuario.id, ehFunc]);
@@ -1360,12 +1383,12 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
       </div>
 
       {modalConvidar && (
-        <Modal titulo="Convidar Funcionário 👷" onFechar={() => { setModalConvidar(false); setEmailConvite(""); }}>
+        <Modal titulo="Adicionar à obra 👷" onFechar={() => { setModalConvidar(false); setEmailConvite(""); }}>
           <div style={{ fontSize:13, color:T.cinza3, marginBottom:16, lineHeight:1.5 }}>
-            O funcionário precisa ter uma conta no ObraFácil. Informe o e-mail cadastrado.
+            Qualquer usuário com conta ativa no ObraFácil pode ser adicionado — mestre ou funcionário.
           </div>
-          <Input label="E-mail do funcionário *" type="email" value={emailConvite} onChange={e=>setEmailConvite(e.target.value)} placeholder="funcionario@email.com" />
-          <Btn onClick={convidar} loading={convidando} disabled={!emailConvite.trim()}>👷 Convidar funcionário</Btn>
+          <Input label="E-mail do usuário *" type="email" value={emailConvite} onChange={e=>setEmailConvite(e.target.value)} placeholder="usuario@email.com" />
+          <Btn onClick={convidar} loading={convidando} disabled={!emailConvite.trim()}>👷 Adicionar à obra</Btn>
         </Modal>
       )}
     </>
