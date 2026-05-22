@@ -927,9 +927,23 @@ function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
   const sincronizarPlano = async () => {
     setSalvando(true);
     try {
-      const { data, error } = await supabase.from("profiles").select("plano").eq("id", usuario.id).single();
-      if (error) throw error;
-      const plano = data?.plano || "gratis";
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(
+        "https://puwebhhkuehlkswycqtz.supabase.co/functions/v1/verificar-pagamento",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Erro ${resp.status}: ${txt}`);
+      }
+      const json = await resp.json();
+      const plano = json.plano || "gratis";
       onPlanoAtualizado(plano);
       setSucesso(`✅ Plano: ${PLANO_LABEL[plano] || plano}`);
       setTimeout(() => setSucesso(""), 3000);
