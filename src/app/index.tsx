@@ -1240,7 +1240,11 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
   const [emailConvite, setEmailConvite]   = useState("");
   const [convidando, setConvidando] = useState(false);
   const [uploadando, setUploadando] = useState(false);
+  const [modalExcluir, setModalExcluir] = useState(false);
+  const [excluindo, setExcluindo]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const podePagar = usuario.plano === "autonomo" || usuario.plano === "mestre";
+  const ehDono    = obra.dono_id === usuario.id;
 
   const carregarTarefas = useCallback(async () => {
     setLoading(true);
@@ -1285,6 +1289,18 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
       setUploadando(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  const excluir = async () => {
+    setExcluindo(true);
+    try {
+      const { error } = await supabase.from("obras").delete().eq("id", obra.id);
+      if (error) throw error;
+      setModalExcluir(false);
+      onVoltar();
+    } catch (e: any) {
+      alert("Erro ao excluir obra: " + (e?.message || "tente novamente"));
+    } finally { setExcluindo(false); }
   };
 
   const convidar = async () => {
@@ -1407,6 +1423,28 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
           </>
         )}
       </div>
+
+      {ehDono && podePagar && (
+        <div style={{ padding:"0 16px 32px" }}>
+          <button onClick={() => setModalExcluir(true)} style={{ width:"100%", padding:"12px", background:T.vermelhoC, border:`1.5px solid ${T.vermelho}40`, borderRadius:12, color:T.vermelho, fontWeight:700, fontSize:14, cursor:"pointer" }}>
+            🗑️ Excluir obra
+          </button>
+        </div>
+      )}
+
+      {modalExcluir && (
+        <Modal titulo="Excluir obra?" onFechar={() => setModalExcluir(false)}>
+          <div style={{ textAlign:"center", padding:"8px 0 20px" }}>
+            <div style={{ fontSize:44, marginBottom:12 }}>🗑️</div>
+            <div style={{ fontSize:15, fontWeight:700, color:T.cinza1, marginBottom:8 }}>{obra.nome}</div>
+            <div style={{ fontSize:13, color:T.cinza3, marginBottom:24, lineHeight:1.6 }}>
+              Esta ação é permanente. Todas as tarefas, fotos e membros desta obra serão removidos.
+            </div>
+            <Btn onClick={excluir} loading={excluindo} cor={T.vermelho}>🗑️ Confirmar exclusão</Btn>
+            <button onClick={() => setModalExcluir(false)} style={{ marginTop:10, width:"100%", padding:"11px", background:"none", border:"none", color:T.cinza3, fontSize:14, cursor:"pointer" }}>Cancelar</button>
+          </div>
+        </Modal>
+      )}
 
       {modalConvidar && (
         <Modal titulo="Adicionar à obra 👷" onFechar={() => { setModalConvidar(false); setEmailConvite(""); }}>
