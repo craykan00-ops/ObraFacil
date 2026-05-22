@@ -720,11 +720,14 @@ function Estoque({ usuario, onVoltar }) {
   useEffect(() => { carregar(); }, [carregar]);
 
   const criar = async () => {
-    if (!novo.material.trim()) return;
+    if (!novo.material.trim() || !obraSel) return;
     setSalvando(true);
     try {
-      await supabase.from("estoque").insert({ ...novo, obra_id: obraSel, quantidade_atual: parseFloat(novo.quantidade_atual)||0, quantidade_minima: parseFloat(novo.quantidade_minima)||0 });
+      const { error } = await supabase.from("estoque").insert({ ...novo, obra_id: obraSel, quantidade_atual: parseFloat(novo.quantidade_atual)||0, quantidade_minima: parseFloat(novo.quantidade_minima)||0 });
+      if (error) throw error;
       setModal(false); setNovo({ material:"", unidade:"un", quantidade_atual:0, quantidade_minima:0 }); carregar();
+    } catch (e) {
+      alert("Erro ao criar material: " + (e?.message || "tente novamente"));
     } finally { setSalvando(false); }
   };
 
@@ -1153,6 +1156,63 @@ function Perfil({ usuario, onLogout, onVoltar }) {
 
 
 
+// ─── DETALHE DA OBRA ───────────────────────────────────────
+function ObraDetalhe({ obra, onVoltar }) {
+  const [tarefas, setTarefas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    supabase.from("tarefas").select("*").eq("obra_id", obra.id).order("criado_em", { ascending:true })
+      .then(({ data }) => { setTarefas(data || []); setLoading(false); });
+  }, [obra.id]);
+
+  const STobra = { em_andamento:{ label:"Em andamento", cor:T.verde, fundo:T.verdeC }, atencao:{ label:"Atenção", cor:T.amarelo, fundo:T.amareloC }, atrasado:{ label:"Atrasado", cor:T.vermelho, fundo:T.vermelhoC }, pausada:{ label:"Pausada", cor:T.cinza3, fundo:"#F5F5F5" }, concluida:{ label:"Concluída", cor:T.verde, fundo:T.verdeC } };
+  const STtarefa = { pendente:{ label:"Pendente", cor:T.cinza3, fundo:"#F0F0F0" }, em_andamento:{ label:"Andamento", cor:T.amarelo, fundo:T.amareloC }, concluida:{ label:"Concluída", cor:T.verde, fundo:T.verdeC } };
+  const st = STobra[obra.status] || STobra.em_andamento;
+  const conc = tarefas.filter(t => t.status === "concluida").length;
+
+  return (
+    <>
+      <Header titulo={obra.nome} subtitulo="← Obras" onVoltar={onVoltar} acao={<Badge label={st.label} cor={st.cor} fundo={st.fundo} />} />
+      <div style={{ padding:"16px 16px 100px" }}>
+        <div style={{ background:T.fundoCard, borderRadius:14, padding:16, border:`1px solid ${T.cinzaBorda}`, marginBottom:16 }}>
+          {obra.endereco && <div style={{ fontSize:12, color:T.cinza3, marginBottom:6 }}>📍 {obra.endereco}</div>}
+          <div style={{ fontSize:12, color:T.cinza3, marginBottom:10 }}>🔧 Fase: {obra.fase_atual || "—"}</div>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+            <span style={{ fontSize:12, color:T.cinza3 }}>Progresso</span>
+            <span style={{ fontSize:12, fontWeight:700, color:st.cor }}>{obra.progresso||0}%</span>
+          </div>
+          <ProgBar valor={obra.progresso||0} cor={st.cor} />
+        </div>
+        <div style={{ fontSize:14, fontWeight:700, color:T.cinza1, marginBottom:12 }}>
+          ✅ Tarefas <span style={{ fontSize:12, fontWeight:500, color:T.cinza3 }}>({conc}/{tarefas.length} concluídas)</span>
+        </div>
+        {loading ? <Spinner /> : tarefas.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"32px 0", color:T.cinza3 }}>
+            <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
+            <div style={{ fontSize:14 }}>Nenhuma tarefa nesta obra</div>
+          </div>
+        ) : tarefas.map(t => {
+          const ts = STtarefa[t.status] || STtarefa.pendente;
+          return (
+            <div key={t.id} style={{ display:"flex", alignItems:"center", gap:12, background:T.fundoCard, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${t.prioridade==="urgente" ? T.vermelho+"40" : T.cinzaBorda}` }}>
+              <div style={{ width:20, height:20, borderRadius:5, flexShrink:0, border:`2px solid ${t.status==="concluida" ? T.verde : T.cinzaBorda}`, background: t.status==="concluida" ? T.verde : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                {t.status==="concluida" && <span style={{ color:"#fff", fontSize:11 }}>✓</span>}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:600, color: t.status==="concluida" ? T.cinza3 : T.cinza1, textDecoration: t.status==="concluida" ? "line-through" : "none" }}>{t.titulo}</div>
+                {t.instrucoes && <div style={{ fontSize:11, color:T.cinza3, marginTop:2 }}>{t.instrucoes.slice(0,60)}{t.instrucoes.length>60?"...":""}</div>}
+              </div>
+              <Badge label={ts.label} cor={ts.cor} fundo={ts.fundo} />
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 // ─── APP ROOT ──────────────────────────────────────────────
 export default function App() {
   const [usuario, setUsuario]   = useState(null);
@@ -1202,9 +1262,7 @@ export default function App() {
     <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif", maxWidth:430, margin:"0 auto", minHeight:"100vh", background:T.fundo, display:"flex", flexDirection:"column" }}>
       <div style={{ flex:1, overflowY:"auto" }}>
         {obraSel ? (
-          <div style={{ padding:"16px 16px 100px" }}>
-            <Header titulo={obraSel.nome} subtitulo="← Obras" onVoltar={() => setObraSel(null)} />
-          </div>
+          <ObraDetalhe obra={obraSel} onVoltar={() => setObraSel(null)} />
         ) : (
           <>
             {aba==="dashboard" && <Dashboard usuario={usuario} nav={setAba} onObraClick={setObraSel} />}
