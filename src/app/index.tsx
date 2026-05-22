@@ -927,10 +927,11 @@ function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
   const sincronizarPlano = async () => {
     setSalvando(true);
     try {
-      const { data, error } = await (supabase.functions as any).invoke("verificar-pagamento");
+      const { data, error } = await supabase.from("profiles").select("plano").eq("id", usuario.id).single();
       if (error) throw error;
-      onPlanoAtualizado(data.plano);
-      setSucesso(`✅ Plano atualizado: ${PLANO_LABEL[data.plano] || data.plano}`);
+      const plano = data?.plano || "gratis";
+      onPlanoAtualizado(plano);
+      setSucesso(`✅ Plano: ${PLANO_LABEL[plano] || plano}`);
       setTimeout(() => setSucesso(""), 3000);
     } catch (e: any) {
       alert("Erro ao sincronizar: " + (e?.message || "tente novamente"));
