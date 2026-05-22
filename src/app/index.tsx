@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../services/supabase";
 
 const T = {
@@ -247,29 +247,50 @@ function TelaAuth({ onLogin }) {
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────
+const LIMITES: Record<string, number> = { gratis: 1, autonomo: 3, mestre: Infinity };
+
 function Dashboard({ usuario, nav, onObraClick }) {
   const [obras, setObras]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]     = useState(false);
+  const [modalUpgrade, setModalUpgrade] = useState(false);
   const [nova, setNova]       = useState({ nome:"", endereco:"", fase_atual:"Fundação" });
   const [salvando, setSalvando] = useState(false);
+  const ehFunc = usuario.perfil === "funcionario";
 
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from("obras").select("*").eq("dono_id", usuario.id).order("criado_em", { ascending:false });
-      setObras(data || []);
+      if (ehFunc) {
+        const { data: vincs } = await supabase.from("obra_funcionarios").select("obra_id").eq("funcionario_id", usuario.id);
+        const ids = (vincs || []).map((v: any) => v.obra_id);
+        if (ids.length === 0) { setObras([]); return; }
+        const { data } = await supabase.from("obras").select("*").in("id", ids).order("criado_em", { ascending:false });
+        setObras(data || []);
+      } else {
+        const { data } = await supabase.from("obras").select("*").eq("dono_id", usuario.id).order("criado_em", { ascending:false });
+        setObras(data || []);
+      }
     } finally { setLoading(false); }
-  }, [usuario.id]);
+  }, [usuario.id, ehFunc]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  const tentarCriar = () => {
+    const plano = usuario.plano || "gratis";
+    const limite = LIMITES[plano] ?? 1;
+    if (obras.length >= limite) { setModalUpgrade(true); } else { setModal(true); }
+  };
 
   const criar = async () => {
     if (!nova.nome.trim()) return;
     setSalvando(true);
     try {
-      await supabase.from("obras").insert({ ...nova, dono_id: usuario.id, status:"em_andamento", progresso:0 });
+      const { error } = await supabase.from("obras").insert({ ...nova, dono_id: usuario.id, status:"em_andamento", progresso:0 });
+      if (error) throw error;
       setModal(false); setNova({ nome:"", endereco:"", fase_atual:"Fundação" }); carregar();
+    } catch (e: any) {
+      alert("Erro ao criar obra: " + (e?.message || "tente novamente"));
     } finally { setSalvando(false); }
   };
 
@@ -296,13 +317,13 @@ function Dashboard({ usuario, nav, onObraClick }) {
         </div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <span style={{ fontSize:16, fontWeight:700, color:T.cinza1 }}>🏗️ Obras ativas</span>
-          <div onClick={() => setModal(true)} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>
+          {!ehFunc && <div onClick={tentarCriar} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Nova</div>}
         </div>
         {loading ? <Spinner /> : obras.length === 0 ? (
           <div style={{ textAlign:"center", padding:"48px 24px", color:T.cinza3 }}>
             <div style={{ fontSize:48, marginBottom:12 }}>🏗️</div>
-            <div style={{ fontSize:16, fontWeight:700, marginBottom:8 }}>Nenhuma obra ainda</div>
-            <button onClick={() => setModal(true)} style={{ padding:"12px 24px", background:T.amarelo, border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer" }}>+ Criar primeira obra</button>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:8 }}>{ehFunc ? "Você não está em nenhuma obra ainda" : "Nenhuma obra ainda"}</div>
+            {!ehFunc && <button onClick={tentarCriar} style={{ padding:"12px 24px", background:T.amarelo, border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer" }}>+ Criar primeira obra</button>}
           </div>
         ) : obras.map(obra => {
           const st = ST[obra.status] || ST.em_andamento;
@@ -358,6 +379,20 @@ function Dashboard({ usuario, nav, onObraClick }) {
           <Btn onClick={criar} loading={salvando} disabled={!nova.nome.trim()}>🏗️ Criar obra</Btn>
         </Modal>
       )}
+      {modalUpgrade && (
+        <Modal titulo="Limite atingido 🚧" onFechar={() => setModalUpgrade(false)}>
+          <div style={{ textAlign:"center", padding:"8px 0 16px" }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>🚧</div>
+            <div style={{ fontSize:15, fontWeight:700, color:T.cinza1, marginBottom:8 }}>
+              Limite do plano {(usuario.plano||"gratis").charAt(0).toUpperCase()+(usuario.plano||"gratis").slice(1)} atingido
+            </div>
+            <div style={{ fontSize:13, color:T.cinza3, marginBottom:24, lineHeight:1.6 }}>
+              {usuario.plano === "autonomo" ? "Faça upgrade para o plano Mestre e crie obras ilimitadas." : "Faça upgrade e desbloqueie mais obras e recursos exclusivos."}
+            </div>
+            <Btn onClick={() => { setModalUpgrade(false); nav("perfil"); }}>🚀 Ver planos de upgrade</Btn>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
@@ -371,25 +406,39 @@ function Tarefas({ usuario, onVoltar }) {
   const [modal, setModal]     = useState(false);
   const [nova, setNova]       = useState({ titulo:"", instrucoes:"", prioridade:"normal" });
   const [salvando, setSalvando] = useState(false);
+  const ehFunc = usuario.perfil === "funcionario";
 
   useEffect(() => {
-    supabase.from("obras").select("*").eq("dono_id", usuario.id).then(({ data }) => {
-      setObras(data || []);
-      if (data?.length > 0) setObraSel(data[0].id);
-    });
-  }, [usuario.id]);
+    if (ehFunc) {
+      supabase.from("obra_funcionarios").select("obra_id").eq("funcionario_id", usuario.id).then(({ data: vincs }) => {
+        const ids = (vincs || []).map((v: any) => v.obra_id);
+        if (ids.length === 0) { setObras([]); return; }
+        supabase.from("obras").select("*").in("id", ids).then(({ data }) => {
+          setObras(data || []);
+          if (data?.length > 0) setObraSel(data[0].id);
+        });
+      });
+    } else {
+      supabase.from("obras").select("*").eq("dono_id", usuario.id).then(({ data }) => {
+        setObras(data || []);
+        if (data?.length > 0) setObraSel(data[0].id);
+      });
+    }
+  }, [usuario.id, ehFunc]);
 
   const carregarTarefas = useCallback(async () => {
     if (!obraSel) return;
     setLoading(true);
     try {
-      const { data } = await supabase.from("tarefas").select("*").eq("obra_id", obraSel).order("criado_em", { ascending:true });
+      let query = supabase.from("tarefas").select("*").eq("obra_id", obraSel).order("criado_em", { ascending:true });
+      if (ehFunc) query = (query as any).eq("responsavel_id", usuario.id);
+      const { data } = await query;
       setTarefas(data || []);
       const total = data?.length || 0;
       const conc  = data?.filter(t=>t.status==="concluida").length || 0;
       if (total > 0) await supabase.from("obras").update({ progresso: Math.round((conc/total)*100) }).eq("id", obraSel);
     } finally { setLoading(false); }
-  }, [obraSel]);
+  }, [obraSel, usuario.id, ehFunc]);
 
   useEffect(() => { carregarTarefas(); }, [carregarTarefas]);
 
@@ -1157,24 +1206,88 @@ function Perfil({ usuario, onLogout, onVoltar }) {
 
 
 // ─── DETALHE DA OBRA ───────────────────────────────────────
-function ObraDetalhe({ obra, onVoltar }) {
-  const [tarefas, setTarefas] = useState([]);
-  const [loading, setLoading] = useState(true);
+function ObraDetalhe({ obra, onVoltar, usuario }) {
+  const [aba, setAba]               = useState("tarefas");
+  const [tarefas, setTarefas]       = useState([]);
+  const [fotos, setFotos]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [loadingFotos, setLoadingFotos] = useState(false);
+  const [modalConvidar, setModalConvidar] = useState(false);
+  const [emailConvite, setEmailConvite]   = useState("");
+  const [convidando, setConvidando] = useState(false);
+  const [uploadando, setUploadando] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const carregarTarefas = useCallback(async () => {
     setLoading(true);
     supabase.from("tarefas").select("*").eq("obra_id", obra.id).order("criado_em", { ascending:true })
       .then(({ data }) => { setTarefas(data || []); setLoading(false); });
   }, [obra.id]);
 
-  const STobra = { em_andamento:{ label:"Em andamento", cor:T.verde, fundo:T.verdeC }, atencao:{ label:"Atenção", cor:T.amarelo, fundo:T.amareloC }, atrasado:{ label:"Atrasado", cor:T.vermelho, fundo:T.vermelhoC }, pausada:{ label:"Pausada", cor:T.cinza3, fundo:"#F5F5F5" }, concluida:{ label:"Concluída", cor:T.verde, fundo:T.verdeC } };
+  const carregarFotos = useCallback(async () => {
+    setLoadingFotos(true);
+    try {
+      const { data } = await supabase.storage.from("fotos-tarefas").list(`obras/${obra.id}`, { sortBy: { column:"created_at", order:"desc" } });
+      if (data) {
+        setFotos(data.map(f => ({
+          name: f.name,
+          url: supabase.storage.from("fotos-tarefas").getPublicUrl(`obras/${obra.id}/${f.name}`).data.publicUrl,
+        })));
+      }
+    } finally { setLoadingFotos(false); }
+  }, [obra.id]);
+
+  useEffect(() => { carregarTarefas(); }, [carregarTarefas]);
+  useEffect(() => { if (aba === "fotos") carregarFotos(); }, [aba, carregarFotos]);
+
+  const adicionarFoto = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadando(true);
+    try {
+      const path = `obras/${obra.id}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("fotos-tarefas").upload(path, file);
+      if (error) throw error;
+      await carregarFotos();
+    } catch (err: any) {
+      alert("Erro ao enviar foto: " + (err?.message || "tente novamente"));
+    } finally {
+      setUploadando(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const convidar = async () => {
+    if (!emailConvite.trim()) return;
+    setConvidando(true);
+    try {
+      const { data: perfil, error: erroP } = await supabase.from("profiles").select("id, nome").eq("email", emailConvite.trim()).maybeSingle();
+      if (erroP || !perfil) { alert("Usuário não encontrado com este e-mail."); return; }
+      const { error: erroI } = await supabase.from("obra_funcionarios").insert({ obra_id: obra.id, funcionario_id: perfil.id, adicionado_por: usuario.id });
+      if (erroI && !erroI.message?.includes("duplicate") && !erroI.message?.includes("unique")) throw erroI;
+      await supabase.from("notificacoes").insert({ usuario_id: perfil.id, tipo:"convite_obra", mensagem:`Você foi convidado para a obra "${obra.nome}"`, obra_id: obra.id });
+      alert(`✅ ${perfil.nome || emailConvite} convidado com sucesso!`);
+      setModalConvidar(false); setEmailConvite("");
+    } catch (err: any) {
+      alert("Erro ao convidar: " + (err?.message || "tente novamente"));
+    } finally { setConvidando(false); }
+  };
+
+  const STobra  = { em_andamento:{ label:"Em andamento", cor:T.verde, fundo:T.verdeC }, atencao:{ label:"Atenção", cor:T.amarelo, fundo:T.amareloC }, atrasado:{ label:"Atrasado", cor:T.vermelho, fundo:T.vermelhoC }, pausada:{ label:"Pausada", cor:T.cinza3, fundo:"#F5F5F5" }, concluida:{ label:"Concluída", cor:T.verde, fundo:T.verdeC } };
   const STtarefa = { pendente:{ label:"Pendente", cor:T.cinza3, fundo:"#F0F0F0" }, em_andamento:{ label:"Andamento", cor:T.amarelo, fundo:T.amareloC }, concluida:{ label:"Concluída", cor:T.verde, fundo:T.verdeC } };
-  const st = STobra[obra.status] || STobra.em_andamento;
+  const st  = STobra[obra.status] || STobra.em_andamento;
   const conc = tarefas.filter(t => t.status === "concluida").length;
 
   return (
     <>
-      <Header titulo={obra.nome} subtitulo="← Obras" onVoltar={onVoltar} acao={<Badge label={st.label} cor={st.cor} fundo={st.fundo} />} />
+      <Header titulo={obra.nome} subtitulo="← Obras" onVoltar={onVoltar}
+        acao={
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <Badge label={st.label} cor={st.cor} fundo={st.fundo} />
+            <button onClick={() => setModalConvidar(true)} style={{ background:T.amareloC, border:"none", borderRadius:8, padding:"6px 10px", color:T.amarelo, fontWeight:700, fontSize:12, cursor:"pointer" }}>👷+</button>
+          </div>
+        }
+      />
       <div style={{ padding:"16px 16px 100px" }}>
         <div style={{ background:T.fundoCard, borderRadius:14, padding:16, border:`1px solid ${T.cinzaBorda}`, marginBottom:16 }}>
           {obra.endereco && <div style={{ fontSize:12, color:T.cinza3, marginBottom:6 }}>📍 {obra.endereco}</div>}
@@ -1185,30 +1298,76 @@ function ObraDetalhe({ obra, onVoltar }) {
           </div>
           <ProgBar valor={obra.progresso||0} cor={st.cor} />
         </div>
-        <div style={{ fontSize:14, fontWeight:700, color:T.cinza1, marginBottom:12 }}>
-          ✅ Tarefas <span style={{ fontSize:12, fontWeight:500, color:T.cinza3 }}>({conc}/{tarefas.length} concluídas)</span>
+
+        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+          {[{ id:"tarefas", emoji:"✅", label:"Tarefas" },{ id:"fotos", emoji:"📸", label:"Fotos" }].map(tab => (
+            <button key={tab.id} onClick={() => setAba(tab.id)} style={{ flex:1, padding:"10px", border:`1.5px solid ${aba===tab.id ? T.amarelo : T.cinzaBorda}`, borderRadius:12, background: aba===tab.id ? T.amareloC : T.fundoCard, color: aba===tab.id ? T.amarelo : T.cinza3, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              {tab.emoji} {tab.label}
+            </button>
+          ))}
         </div>
-        {loading ? <Spinner /> : tarefas.length === 0 ? (
-          <div style={{ textAlign:"center", padding:"32px 0", color:T.cinza3 }}>
-            <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
-            <div style={{ fontSize:14 }}>Nenhuma tarefa nesta obra</div>
-          </div>
-        ) : tarefas.map(t => {
-          const ts = STtarefa[t.status] || STtarefa.pendente;
-          return (
-            <div key={t.id} style={{ display:"flex", alignItems:"center", gap:12, background:T.fundoCard, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${t.prioridade==="urgente" ? T.vermelho+"40" : T.cinzaBorda}` }}>
-              <div style={{ width:20, height:20, borderRadius:5, flexShrink:0, border:`2px solid ${t.status==="concluida" ? T.verde : T.cinzaBorda}`, background: t.status==="concluida" ? T.verde : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                {t.status==="concluida" && <span style={{ color:"#fff", fontSize:11 }}>✓</span>}
-              </div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontWeight:600, color: t.status==="concluida" ? T.cinza3 : T.cinza1, textDecoration: t.status==="concluida" ? "line-through" : "none" }}>{t.titulo}</div>
-                {t.instrucoes && <div style={{ fontSize:11, color:T.cinza3, marginTop:2 }}>{t.instrucoes.slice(0,60)}{t.instrucoes.length>60?"...":""}</div>}
-              </div>
-              <Badge label={ts.label} cor={ts.cor} fundo={ts.fundo} />
+
+        {aba === "tarefas" && (
+          <>
+            <div style={{ fontSize:14, fontWeight:700, color:T.cinza1, marginBottom:12 }}>
+              ✅ Tarefas <span style={{ fontSize:12, fontWeight:500, color:T.cinza3 }}>({conc}/{tarefas.length} concluídas)</span>
             </div>
-          );
-        })}
+            {loading ? <Spinner /> : tarefas.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"32px 0", color:T.cinza3 }}>
+                <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
+                <div style={{ fontSize:14 }}>Nenhuma tarefa nesta obra</div>
+              </div>
+            ) : tarefas.map(t => {
+              const ts = STtarefa[t.status] || STtarefa.pendente;
+              return (
+                <div key={t.id} style={{ display:"flex", alignItems:"center", gap:12, background:T.fundoCard, borderRadius:12, padding:"12px 14px", marginBottom:8, border:`1px solid ${t.prioridade==="urgente" ? T.vermelho+"40" : T.cinzaBorda}` }}>
+                  <div style={{ width:20, height:20, borderRadius:5, flexShrink:0, border:`2px solid ${t.status==="concluida" ? T.verde : T.cinzaBorda}`, background: t.status==="concluida" ? T.verde : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    {t.status==="concluida" && <span style={{ color:"#fff", fontSize:11 }}>✓</span>}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color: t.status==="concluida" ? T.cinza3 : T.cinza1, textDecoration: t.status==="concluida" ? "line-through" : "none" }}>{t.titulo}</div>
+                    {t.instrucoes && <div style={{ fontSize:11, color:T.cinza3, marginTop:2 }}>{t.instrucoes.slice(0,60)}{t.instrucoes.length>60?"...":""}</div>}
+                  </div>
+                  <Badge label={ts.label} cor={ts.cor} fundo={ts.fundo} />
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {aba === "fotos" && (
+          <>
+            <input ref={fileRef} type="file" accept="image/*" onChange={adicionarFoto} style={{ display:"none" }} />
+            <button onClick={() => fileRef.current?.click()} disabled={uploadando} style={{ width:"100%", padding:"12px", background:T.amareloC, border:`1.5px dashed ${T.amarelo}`, borderRadius:12, color:T.amarelo, fontWeight:700, fontSize:14, cursor:"pointer", marginBottom:16 }}>
+              {uploadando ? "⏳ Enviando..." : "📷 Adicionar foto"}
+            </button>
+            {loadingFotos ? <Spinner /> : fotos.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"32px 0", color:T.cinza3 }}>
+                <div style={{ fontSize:40, marginBottom:8 }}>📸</div>
+                <div style={{ fontSize:14 }}>Nenhuma foto ainda</div>
+              </div>
+            ) : (
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                {fotos.map((f: any, i: number) => (
+                  <a key={i} href={f.url} target="_blank" rel="noreferrer" style={{ display:"block", borderRadius:12, overflow:"hidden", border:`1px solid ${T.cinzaBorda}`, aspectRatio:"1/1", background:"#EEE" }}>
+                    <img src={f.url} alt={f.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
+
+      {modalConvidar && (
+        <Modal titulo="Convidar Funcionário 👷" onFechar={() => { setModalConvidar(false); setEmailConvite(""); }}>
+          <div style={{ fontSize:13, color:T.cinza3, marginBottom:16, lineHeight:1.5 }}>
+            O funcionário precisa ter uma conta no ObraFácil. Informe o e-mail cadastrado.
+          </div>
+          <Input label="E-mail do funcionário *" type="email" value={emailConvite} onChange={e=>setEmailConvite(e.target.value)} placeholder="funcionario@email.com" />
+          <Btn onClick={convidar} loading={convidando} disabled={!emailConvite.trim()}>👷 Convidar funcionário</Btn>
+        </Modal>
+      )}
     </>
   );
 }
@@ -1262,7 +1421,7 @@ export default function App() {
     <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif", maxWidth:430, margin:"0 auto", minHeight:"100vh", background:T.fundo, display:"flex", flexDirection:"column" }}>
       <div style={{ flex:1, overflowY:"auto" }}>
         {obraSel ? (
-          <ObraDetalhe obra={obraSel} onVoltar={() => setObraSel(null)} />
+          <ObraDetalhe obra={obraSel} onVoltar={() => setObraSel(null)} usuario={usuario} />
         ) : (
           <>
             {aba==="dashboard" && <Dashboard usuario={usuario} nav={setAba} onObraClick={setObraSel} />}
