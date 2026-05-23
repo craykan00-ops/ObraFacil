@@ -97,7 +97,7 @@ function BottomNav({ aba, setAba }) {
       {[
         { id:"dashboard", emoji:"🏠", label:"Início"    },
         { id:"tarefas",   emoji:"✅", label:"Tarefas"   },
-        { id:"orcamento", emoji:"💰", label:"Orçamento" },
+        { id:"cronograma", emoji:"📅", label:"Cronograma" },
         { id:"estoque",   emoji:"📦", label:"Estoque"   },
         { id:"perfil",    emoji:"👤", label:"Perfil"    },
       ].map(item => (
@@ -909,6 +909,330 @@ function Estoque({ usuario, onVoltar }) {
   );
 }
 
+// ─── CRONOGRAMA ────────────────────────────────────────────
+const CORES_FASES = ['#2E7D32','#1565C0','#6A1B9A','#E65100','#C62828','#F57F17','#00838F','#4E342E'];
+
+function Cronograma({ usuario, onVoltar }) {
+  const [aba, setAba]             = useState("timeline");
+  const [obras, setObras]         = useState([]);
+  const [obraSel, setObraSel]     = useState(null);
+  const [fases, setFases]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [modal, setModal]         = useState(false);
+  const [editando, setEditando]   = useState(null);
+  const [expandido, setExpandido] = useState(null);
+  const [nova, setNova]           = useState({ nome:"", inicio:"", fim:"", responsavel:"", cor:"#2E7D32", progresso:0 });
+  const [salvando, setSalvando]   = useState(false);
+
+  useEffect(() => {
+    supabase.from("obras").select("*").eq("dono_id", usuario.id).then(({ data }) => {
+      setObras(data || []);
+      if (data?.length > 0) setObraSel(data[0].id);
+    });
+  }, [usuario.id]);
+
+  const carregarFases = useCallback(async () => {
+    if (!obraSel) return;
+    setLoading(true);
+    try {
+      const { data } = await supabase.from("cronograma_fases").select("*").eq("obra_id", obraSel).order("inicio", { ascending:true });
+      setFases(data || []);
+    } finally { setLoading(false); }
+  }, [obraSel]);
+
+  useEffect(() => { carregarFases(); }, [carregarFases]);
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const parseDate = (s) => { const d = new Date(s + "T00:00:00"); d.setHours(0,0,0,0); return d; };
+  const fmtData = (s) => s ? parseDate(s).toLocaleDateString("pt-BR", { day:"2-digit", month:"short" }) : "—";
+  const diasEntre = (a, b) => Math.round((b.getTime() - a.getTime()) / 86400000);
+
+  const datas = fases.flatMap((f:any) => [parseDate(f.inicio), parseDate(f.fim)]);
+  const minData = datas.length > 0 ? new Date(Math.min(...datas.map(d=>d.getTime()))) : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const maxData = datas.length > 0 ? new Date(Math.max(...datas.map(d=>d.getTime()))) : new Date(hoje.getFullYear(), hoje.getMonth()+2, 0);
+  minData.setDate(minData.getDate() - 3);
+  maxData.setDate(maxData.getDate() + 3);
+  const totalDias = Math.max(diasEntre(minData, maxData), 1);
+  const posLeft   = (d) => `${Math.max(0, diasEntre(minData, parseDate(d)) / totalDias * 100)}%`;
+  const posWidth  = (ini, fim) => `${Math.max(2, diasEntre(parseDate(ini), parseDate(fim)) / totalDias * 100)}%`;
+  const hojeRatio = Math.max(0, Math.min(1, diasEntre(minData, hoje) / totalDias));
+
+  const concluidas  = fases.filter((f:any) => f.status === "concluida").length;
+  const emAndamento = fases.filter((f:any) => f.status === "em_andamento").length;
+  const progGeral   = fases.length > 0 ? Math.round((fases as any[]).reduce((s,f) => s + (f.progresso||0), 0) / fases.length) : 0;
+
+  const abrirModal  = () => { setEditando(null); setNova({ nome:"", inicio:"", fim:"", responsavel:"", cor:"#2E7D32", progresso:0 }); setModal(true); };
+  const abrirEditar = (fase:any) => { setEditando(fase); setNova({ nome:fase.nome, inicio:fase.inicio, fim:fase.fim, responsavel:fase.responsavel||"", cor:fase.cor||"#2E7D32", progresso:fase.progresso||0 }); setModal(true); };
+
+  const salvar = async () => {
+    if (!nova.nome.trim() || !nova.inicio || !nova.fim) return;
+    setSalvando(true);
+    try {
+      const dados = { nome:nova.nome, inicio:nova.inicio, fim:nova.fim, responsavel:nova.responsavel, cor:nova.cor, progresso:nova.progresso, obra_id:obraSel };
+      if (editando) {
+        await supabase.from("cronograma_fases").update(dados).eq("id", (editando as any).id);
+      } else {
+        await supabase.from("cronograma_fases").insert({ ...dados, status:"pendente" });
+      }
+      setModal(false); setEditando(null);
+      setNova({ nome:"", inicio:"", fim:"", responsavel:"", cor:"#2E7D32", progresso:0 });
+      carregarFases();
+    } finally { setSalvando(false); }
+  };
+
+  const deletar = async (id) => {
+    if (!window.confirm("Excluir esta fase?")) return;
+    await supabase.from("cronograma_fases").delete().eq("id", id);
+    carregarFases();
+  };
+
+  const concluirFase = async (fase:any) => {
+    await supabase.from("cronograma_fases").update({ status:"concluida", progresso:100 }).eq("id", fase.id);
+    carregarFases();
+  };
+
+  const obraAtual   = (obras as any[]).find(o => o.id === obraSel);
+  const linkPublico = obraSel ? `${typeof window !== "undefined" ? window.location.origin : ""}/obra/${obraSel}` : "";
+  const copiarLink  = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(linkPublico).then(() => alert("✅ Link copiado!")).catch(() => alert("Link: " + linkPublico));
+    } else { alert("Link: " + linkPublico); }
+  };
+
+  return (
+    <>
+      <Header titulo="Cronograma" subtitulo="📅 Módulo" onVoltar={onVoltar}
+        acao={aba === "fases" ? <div onClick={abrirModal} style={{ background:T.amareloC, padding:"5px 12px", borderRadius:20, fontSize:13, color:T.amarelo, fontWeight:600, cursor:"pointer" }}>+ Fase</div> : null}
+      />
+
+      <div style={{ background:T.fundoCard, borderBottom:`1px solid ${T.cinzaBorda}`, padding:"10px 16px 0" }}>
+        {obras.length > 0 && (
+          <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:8 }}>
+            {(obras as any[]).map(o => (
+              <button key={o.id} onClick={() => setObraSel(o.id)} style={{ padding:"6px 14px", border:`1.5px solid ${obraSel===o.id ? T.amarelo : T.cinzaBorda}`, borderRadius:20, background: obraSel===o.id ? T.amareloC : T.fundoCard, color: obraSel===o.id ? T.amarelo : T.cinza3, fontWeight:600, fontSize:12, cursor:"pointer", whiteSpace:"nowrap" }}>
+                {o.nome}
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ display:"flex" }}>
+          {[{ id:"timeline", emoji:"📊", label:"Timeline" },{ id:"fases", emoji:"📋", label:"Fases" },{ id:"cliente", emoji:"🔗", label:"Cliente" }].map(tab => (
+            <button key={tab.id} onClick={() => setAba(tab.id)} style={{ flex:1, padding:"10px 4px", border:"none", background:"none", borderBottom:`2.5px solid ${aba===tab.id ? T.amarelo : "transparent"}`, color: aba===tab.id ? T.amarelo : T.cinza3, fontWeight: aba===tab.id ? 700 : 500, fontSize:12, cursor:"pointer" }}>
+              {tab.emoji} {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:"16px 16px 100px" }}>
+
+        {aba === "timeline" && (
+          <>
+            <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+              {[
+                { emoji:"✅", v:concluidas,      l:"Concluídas", c:T.verde   },
+                { emoji:"🔄", v:emAndamento,     l:"Andamento",  c:T.amarelo },
+                { emoji:"📊", v:`${progGeral}%`, l:"Progresso",  c:T.cinza1  },
+              ].map((s,i) => (
+                <div key={i} style={{ flex:1, background:T.fundoCard, borderRadius:12, padding:"12px 8px", textAlign:"center", border:`1px solid ${T.cinzaBorda}` }}>
+                  <div style={{ fontSize:18, marginBottom:4 }}>{s.emoji}</div>
+                  <div style={{ fontSize:20, fontWeight:800, color:s.c }}>{s.v}</div>
+                  <div style={{ fontSize:9, color:T.cinza3, marginTop:3 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background:T.fundoCard, borderRadius:14, padding:16, border:`1px solid ${T.cinzaBorda}`, marginBottom:16 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                <span style={{ fontSize:13, fontWeight:700, color:T.cinza1 }}>Progresso geral da obra</span>
+                <span style={{ fontSize:13, fontWeight:800, color:T.verde }}>{progGeral}%</span>
+              </div>
+              <div style={{ height:12, background:T.cinzaBorda, borderRadius:6, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${progGeral}%`, background:`linear-gradient(90deg,${T.verde},#4CAF50)`, borderRadius:6, transition:"width 0.8s" }} />
+              </div>
+            </div>
+
+            {loading ? <Spinner /> : fases.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"40px 0", color:T.cinza3 }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
+                <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Nenhuma fase cadastrada</div>
+                <button onClick={() => setAba("fases")} style={{ padding:"10px 20px", background:T.amarelo, border:"none", borderRadius:10, color:"#fff", fontWeight:700, cursor:"pointer" }}>+ Adicionar fase</button>
+              </div>
+            ) : (
+              <div style={{ background:T.fundoCard, borderRadius:14, padding:16, border:`1px solid ${T.cinzaBorda}` }}>
+                <div style={{ fontSize:13, fontWeight:700, color:T.cinza1, marginBottom:12 }}>📊 Gráfico Gantt</div>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:T.cinza3, marginBottom:6, paddingLeft:98 }}>
+                  <span>{minData.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</span>
+                  <span style={{ color:T.vermelho, fontWeight:700 }}>Hoje</span>
+                  <span>{maxData.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</span>
+                </div>
+                <div style={{ position:"relative" }}>
+                  {(fases as any[]).map(fase => (
+                    <div key={fase.id} style={{ display:"flex", alignItems:"center", marginBottom:8, gap:8 }}>
+                      <div style={{ width:90, fontSize:10, color:T.cinza2, fontWeight:600, flexShrink:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={fase.nome}>{fase.nome}</div>
+                      <div style={{ flex:1, position:"relative", height:22, background:"#F0F0EE", borderRadius:4 }}>
+                        <div style={{ position:"absolute", left:posLeft(fase.inicio), width:posWidth(fase.inicio,fase.fim), height:"100%", background:fase.cor||"#2E7D32", borderRadius:4, display:"flex", alignItems:"center", paddingLeft:4, boxSizing:"border-box" as any, minWidth:20 }}>
+                          <span style={{ fontSize:9, color:"#fff", fontWeight:700 }}>{fase.progresso||0}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ position:"absolute", top:0, bottom:0, left:`calc(98px + (100% - 98px) * ${hojeRatio})`, width:2, background:T.vermelho, opacity:0.85, pointerEvents:"none" as any, zIndex:5 }} />
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:10, fontSize:10, color:T.cinza3 }}>
+                  <div style={{ width:12, height:2, background:T.vermelho }} />
+                  <span>Linha vermelha = Hoje ({hoje.toLocaleDateString("pt-BR")})</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {aba === "fases" && (
+          loading ? <Spinner /> : fases.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"40px 0", color:T.cinza3 }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
+              <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Nenhuma fase ainda</div>
+              <button onClick={abrirModal} style={{ padding:"10px 20px", background:T.amarelo, border:"none", borderRadius:10, color:"#fff", fontWeight:700, cursor:"pointer" }}>+ Adicionar primeira fase</button>
+            </div>
+          ) : (
+            <>
+              {(fases as any[]).map(fase => {
+                const aberto = expandido === fase.id;
+                const stCor  = fase.status === "concluida" ? T.verde : fase.status === "em_andamento" ? T.amarelo : T.cinza3;
+                const stLbl  = fase.status === "concluida" ? "Concluída" : fase.status === "em_andamento" ? "Andamento" : "Pendente";
+                return (
+                  <div key={fase.id} style={{ background:T.fundoCard, borderRadius:14, marginBottom:12, border:`1px solid ${T.cinzaBorda}`, overflow:"hidden" }}>
+                    <div style={{ height:4, background:fase.cor||"#2E7D32" }} />
+                    <div onClick={() => setExpandido(aberto ? null : fase.id)} style={{ padding:"14px 16px", cursor:"pointer" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                        <div style={{ flex:1, paddingRight:8 }}>
+                          <div style={{ fontSize:15, fontWeight:700, color:T.cinza1 }}>{fase.nome}</div>
+                          <div style={{ fontSize:11, color:T.cinza3, marginTop:2 }}>📅 {fmtData(fase.inicio)} → {fmtData(fase.fim)}</div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <Badge label={stLbl} cor={stCor} fundo={stCor+"20"} />
+                          <span style={{ color:T.cinza3, fontSize:14, display:"inline-block", transform: aberto ? "rotate(180deg)" : "none", transition:"transform 0.2s" }}>▼</span>
+                        </div>
+                      </div>
+                      <div style={{ marginTop:10 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                          <span style={{ fontSize:11, color:T.cinza3 }}>Progresso</span>
+                          <span style={{ fontSize:11, fontWeight:700, color:fase.cor||T.verde }}>{fase.progresso||0}%</span>
+                        </div>
+                        <ProgBar valor={fase.progresso||0} cor={fase.cor||T.verde} />
+                      </div>
+                    </div>
+                    {aberto && (
+                      <div style={{ padding:"12px 16px 16px", borderTop:`1px solid ${T.cinzaBorda}` }}>
+                        {fase.responsavel && <div style={{ fontSize:12, color:T.cinza3, marginBottom:12 }}>👷 Responsável: <strong style={{ color:T.cinza1 }}>{fase.responsavel}</strong></div>}
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" as any }}>
+                          {fase.status !== "concluida" && (
+                            <button onClick={() => concluirFase(fase)} style={{ flex:1, minWidth:80, padding:"9px 6px", background:T.verdeC, border:`1px solid ${T.verde}`, borderRadius:8, color:T.verde, fontWeight:700, fontSize:12, cursor:"pointer" }}>✅ Concluir</button>
+                          )}
+                          <button onClick={() => abrirEditar(fase)} style={{ flex:1, minWidth:70, padding:"9px 6px", background:T.amareloC, border:`1px solid ${T.amarelo}`, borderRadius:8, color:T.amarelo, fontWeight:700, fontSize:12, cursor:"pointer" }}>✏️ Editar</button>
+                          <button onClick={() => deletar(fase.id)} style={{ flex:1, minWidth:70, padding:"9px 6px", background:T.vermelhoC, border:`1px solid ${T.vermelho}`, borderRadius:8, color:T.vermelho, fontWeight:700, fontSize:12, cursor:"pointer" }}>🗑️ Excluir</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )
+        )}
+
+        {aba === "cliente" && (
+          <>
+            <div style={{ background:`linear-gradient(135deg,${T.cinza1},#333)`, borderRadius:14, padding:20, marginBottom:16 }}>
+              <div style={{ fontSize:12, color:"#888", marginBottom:4 }}>🔗 Link público desta obra</div>
+              <div style={{ fontSize:11, color:"#AAA", wordBreak:"break-all" as any, marginBottom:14, lineHeight:1.5 }}>{linkPublico || "Selecione uma obra acima"}</div>
+              <button onClick={copiarLink} disabled={!obraSel} style={{ width:"100%", padding:"11px", background:T.amarelo, border:"none", borderRadius:10, color:"#fff", fontWeight:700, fontSize:14, cursor: obraSel ? "pointer" : "default", opacity: obraSel ? 1 : 0.5 }}>
+                📋 Copiar link
+              </button>
+            </div>
+
+            <div style={{ fontSize:13, fontWeight:700, color:T.cinza1, marginBottom:12 }}>👁️ Preview — Visão do cliente</div>
+            <div style={{ background:"#1A1A1A", borderRadius:14, padding:20, border:`1px solid #333` }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+                <div style={{ fontSize:28 }}>🏗️</div>
+                <div>
+                  <div style={{ fontSize:11, color:"#666", letterSpacing:1, textTransform:"uppercase" as any }}>OBRAFÁCIL</div>
+                  <div style={{ fontSize:16, fontWeight:800, color:T.amarelo }}>{obraAtual?.nome || "—"}</div>
+                </div>
+              </div>
+              <div style={{ fontSize:12, color:"#888", marginBottom:6 }}>Progresso geral da obra</div>
+              <div style={{ height:8, background:"#333", borderRadius:4, overflow:"hidden", marginBottom:4 }}>
+                <div style={{ height:"100%", width:`${progGeral}%`, background:`linear-gradient(90deg,${T.amarelo},${T.laranja})`, borderRadius:4, transition:"width 0.8s" }} />
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#666", marginBottom:18 }}>
+                <span>Conclusão estimada</span>
+                <span style={{ color:T.amarelo, fontWeight:700 }}>{progGeral}%</span>
+              </div>
+              {fases.length === 0 ? (
+                <div style={{ textAlign:"center", color:"#555", fontSize:13 }}>Nenhuma fase cadastrada</div>
+              ) : (fases as any[]).slice(0,5).map((fase,i) => {
+                const stCor = fase.status==="concluida" ? T.verde : fase.status==="em_andamento" ? T.amarelo : "#555";
+                return (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                    <div style={{ width:10, height:10, borderRadius:5, background:fase.cor||stCor, flexShrink:0 }} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, color:"#DDD", fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as any }}>{fase.nome}</div>
+                      <div style={{ fontSize:10, color:"#555" }}>{fmtData(fase.inicio)} → {fmtData(fase.fim)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:11, color:stCor, fontWeight:700 }}>{fase.progresso||0}%</div>
+                      <div style={{ height:3, background:"#333", borderRadius:2, width:40, marginTop:3, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${fase.progresso||0}%`, background:stCor, borderRadius:2 }} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {fases.length > 5 && <div style={{ textAlign:"center", fontSize:11, color:"#555", marginTop:8 }}>+ {fases.length-5} fases</div>}
+            </div>
+          </>
+        )}
+      </div>
+
+      {modal && (
+        <Modal titulo={editando ? "✏️ Editar Fase" : "📅 Nova Fase"} onFechar={() => { setModal(false); setEditando(null); setNova({ nome:"", inicio:"", fim:"", responsavel:"", cor:"#2E7D32", progresso:0 }); }}>
+          <Input label="Nome da fase *" value={nova.nome} onChange={e=>setNova(p=>({...p,nome:e.target.value}))} placeholder="Ex: Fundação" />
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Data início *</div>
+              <input type="date" value={nova.inicio} onChange={e=>setNova(p=>({...p,inicio:e.target.value}))} style={{ width:"100%", padding:"11px 10px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" as any }} />
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:6 }}>Data fim *</div>
+              <input type="date" value={nova.fim} onChange={e=>setNova(p=>({...p,fim:e.target.value}))} style={{ width:"100%", padding:"11px 10px", borderRadius:10, border:`1.5px solid ${T.cinzaBorda}`, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" as any }} />
+            </div>
+          </div>
+          <Input label="Responsável" value={nova.responsavel} onChange={e=>setNova(p=>({...p,responsavel:e.target.value}))} placeholder="Ex: João Silva" />
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+              <span style={{ fontSize:12, fontWeight:600, color:T.cinza2 }}>Progresso</span>
+              <span style={{ fontSize:12, fontWeight:700, color:nova.cor }}>{nova.progresso}%</span>
+            </div>
+            <input type="range" min={0} max={100} value={nova.progresso} onChange={e=>setNova(p=>({...p,progresso:parseInt(e.target.value)||0}))} style={{ width:"100%", accentColor:nova.cor }} />
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.cinza2, marginBottom:8 }}>Cor</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" as any }}>
+              {CORES_FASES.map(cor => (
+                <div key={cor} onClick={() => setNova(p=>({...p,cor}))} style={{ width:34, height:34, borderRadius:8, background:cor, cursor:"pointer", border:`3px solid ${nova.cor===cor ? "#fff" : "transparent"}`, outline:`2px solid ${nova.cor===cor ? cor : "transparent"}`, boxSizing:"border-box" as any, transition:"all 0.2s" }} />
+              ))}
+            </div>
+          </div>
+          <Btn onClick={salvar} loading={salvando} disabled={!nova.nome.trim()||!nova.inicio||!nova.fim}>
+            {editando ? "💾 Salvar alterações" : "📅 Criar fase"}
+          </Btn>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 // ─── PERFIL ────────────────────────────────────────────────
 const PLANO_LABEL: Record<string, string> = { gratis:"🪚 Grátis", autonomo:"🔨 Autônomo", mestre:"👑 Mestre" };
 
@@ -1565,7 +1889,8 @@ export default function App() {
             {aba==="dashboard" && <Dashboard usuario={usuario} nav={setAba} onObraClick={setObraSel} />}
             {aba==="tarefas"   && <Tarefas   usuario={usuario} onVoltar={() => setAba("dashboard")} />}
             {aba==="orcamento" && <Orcamentos usuario={usuario} onVoltar={() => setAba("dashboard")} />}
-            {aba==="estoque"   && <Estoque   usuario={usuario} onVoltar={() => setAba("dashboard")} />}
+            {aba==="estoque"    && <Estoque    usuario={usuario} onVoltar={() => setAba("dashboard")} />}
+            {aba==="cronograma" && <Cronograma usuario={usuario} onVoltar={() => setAba("dashboard")} />}
             {aba==="perfil"    && <Perfil    usuario={usuario} onLogout={handleLogout} onVoltar={() => setAba("dashboard")} onPlanoAtualizado={(plano) => setUsuario((prev: any) => ({ ...prev, plano }))} />}
           </>
         )}
