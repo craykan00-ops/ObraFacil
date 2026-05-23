@@ -923,6 +923,7 @@ function Cronograma({ usuario, onVoltar }) {
   const [expandido, setExpandido] = useState(null);
   const [nova, setNova]           = useState({ nome:"", inicio:"", fim:"", responsavel:"", cor:"#2E7D32", progresso:0 });
   const [salvando, setSalvando]   = useState(false);
+  const [modalGantt, setModalGantt] = useState(false);
 
   useEffect(() => {
     supabase.from("obras").select("*").eq("dono_id", usuario.id).then(({ data }) => {
@@ -956,6 +957,7 @@ function Cronograma({ usuario, onVoltar }) {
   const posLeft   = (d) => `${Math.max(0, diasEntre(minData, parseDate(d)) / totalDias * 100)}%`;
   const posWidth  = (ini, fim) => `${Math.max(2, diasEntre(parseDate(ini), parseDate(fim)) / totalDias * 100)}%`;
   const hojeRatio = Math.max(0, Math.min(1, diasEntre(minData, hoje) / totalDias));
+  const semanas: Date[] = (() => { const s: Date[] = []; const c = new Date(minData); while (c <= maxData) { s.push(new Date(c)); c.setDate(c.getDate()+7); } return s; })();
 
   const concluidas  = fases.filter((f:any) => f.status === "concluida").length;
   const emAndamento = fases.filter((f:any) => f.status === "em_andamento").length;
@@ -1060,7 +1062,10 @@ function Cronograma({ usuario, onVoltar }) {
               </div>
             ) : (
               <div style={{ background:T.fundoCard, borderRadius:14, padding:16, border:`1px solid ${T.cinzaBorda}` }}>
-                <div style={{ fontSize:13, fontWeight:700, color:T.cinza1, marginBottom:12 }}>📊 Gráfico Gantt</div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:T.cinza1 }}>📊 Gráfico Gantt</div>
+                  <button onClick={() => setModalGantt(true)} style={{ background:T.amareloC, border:`1px solid ${T.amarelo}`, borderRadius:8, padding:"5px 12px", color:T.amarelo, fontWeight:700, fontSize:12, cursor:"pointer" }}>⤢ Ampliar</button>
+                </div>
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:T.cinza3, marginBottom:6, paddingLeft:98 }}>
                   <span>{minData.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</span>
                   <span style={{ color:T.vermelho, fontWeight:700 }}>Hoje</span>
@@ -1194,6 +1199,129 @@ function Cronograma({ usuario, onVoltar }) {
           </>
         )}
       </div>
+
+      {/* ── MODAL GANTT AMPLIADO ── */}
+      {modalGantt && (
+        <div style={{ position:"fixed", inset:0, zIndex:200, background:T.fundo, display:"flex", flexDirection:"column", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+
+          {/* Cabeçalho */}
+          <div style={{ background:T.cinza1, padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
+            <div>
+              <div style={{ fontSize:10, color:"#888", letterSpacing:2, textTransform:"uppercase" as any, marginBottom:2 }}>Cronograma</div>
+              <div style={{ fontSize:17, fontWeight:800, color:T.amarelo }}>{obraAtual?.nome || "—"}</div>
+            </div>
+            <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:12, color:"#888" }}>Progresso geral</div>
+                <div style={{ fontSize:20, fontWeight:900, color:T.amarelo }}>{progGeral}%</div>
+              </div>
+              <button onClick={() => setModalGantt(false)} style={{ background:"rgba(255,255,255,0.12)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", padding:"8px 16px", borderRadius:10 }}>✕ Fechar</button>
+            </div>
+          </div>
+
+          {/* Barra progresso geral */}
+          <div style={{ height:5, background:"#333", flexShrink:0 }}>
+            <div style={{ height:"100%", width:`${progGeral}%`, background:`linear-gradient(90deg,${T.amarelo},${T.laranja})`, transition:"width 0.8s" }} />
+          </div>
+
+          {/* Tabela Gantt scrollável */}
+          <div style={{ flex:1, overflow:"auto" }}>
+            {fases.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"80px 40px", color:T.cinza3 }}>
+                <div style={{ fontSize:48, marginBottom:16 }}>📅</div>
+                <div style={{ fontSize:16, fontWeight:600 }}>Nenhuma fase cadastrada ainda</div>
+              </div>
+            ) : (
+              <table style={{ borderCollapse:"collapse", tableLayout:"fixed" as any, minWidth:"100%" }}>
+                <thead>
+                  <tr>
+                    {/* Coluna de fases — fixa */}
+                    <th style={{ position:"sticky", left:0, zIndex:20, width:150, minWidth:150, background:T.cinza1, color:"#fff", padding:"10px 14px", borderRight:`2px solid #444`, textAlign:"left", fontSize:12, fontWeight:700, letterSpacing:0.5 }}>
+                      FASE
+                    </th>
+                    {/* Colunas de semanas */}
+                    {semanas.map((sem, i) => {
+                      const semFim = new Date(sem.getTime() + 6*86400000);
+                      const isHoje = hoje >= sem && hoje <= semFim;
+                      const mes    = sem.toLocaleDateString("pt-BR", { month:"short" }).toUpperCase();
+                      const prev   = i > 0 ? semanas[i-1].toLocaleDateString("pt-BR", { month:"short" }).toUpperCase() : null;
+                      return (
+                        <th key={i} style={{ minWidth:64, width:64, background: isHoje ? "#3a1f00" : (i%2===0 ? T.cinza1 : "#222"), color: isHoje ? T.amarelo : "#aaa", padding:"6px 4px", borderLeft:`1px solid #333`, fontSize:10, fontWeight:500, textAlign:"center", verticalAlign:"bottom" }}>
+                          {prev !== mes && <div style={{ color: isHoje ? T.amarelo : "#666", fontWeight:700, fontSize:9, marginBottom:2 }}>{mes}</div>}
+                          <div style={{ fontWeight: isHoje ? 700 : 400 }}>{sem.getDate()}/{String(sem.getMonth()+1).padStart(2,"0")}</div>
+                          {isHoje && <div style={{ color:T.vermelho, fontSize:8, fontWeight:900, marginTop:2 }}>● HOJE</div>}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(fases as any[]).map((fase, fi) => {
+                    const fIni  = parseDate(fase.inicio);
+                    const fFim  = parseDate(fase.fim);
+                    const stCor = fase.status==="concluida" ? T.verde : fase.status==="em_andamento" ? T.amarelo : T.cinza3;
+                    const stEmoji = fase.status==="concluida" ? "✅" : fase.status==="em_andamento" ? "🔄" : "⏳";
+                    const rowBg = fi%2===0 ? "#fff" : "#F9F9F7";
+                    return (
+                      <tr key={fase.id}>
+                        {/* Nome da fase — fixo à esquerda */}
+                        <td style={{ position:"sticky", left:0, zIndex:10, background:rowBg, padding:"10px 14px", borderRight:`2px solid ${T.cinzaBorda}`, borderBottom:`1px solid ${T.cinzaBorda}`, minWidth:150, width:150 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                            <div style={{ width:10, height:10, borderRadius:5, background:fase.cor||"#2E7D32", flexShrink:0 }} />
+                            <div style={{ minWidth:0 }}>
+                              <div style={{ fontSize:12, fontWeight:700, color:T.cinza1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as any, maxWidth:110 }}>{fase.nome}</div>
+                              <div style={{ fontSize:10, color:stCor, fontWeight:600 }}>{stEmoji} {fase.progresso||0}%</div>
+                            </div>
+                          </div>
+                        </td>
+                        {/* Células por semana */}
+                        {semanas.map((sem, si) => {
+                          const semFim = new Date(sem.getTime() + 6*86400000);
+                          const ativo  = fIni <= semFim && fFim >= sem;
+                          const inicio = fIni >= sem && fIni <= semFim;
+                          const fim    = fFim >= sem && fFim <= semFim;
+                          const isHoje = hoje >= sem && hoje <= semFim;
+                          return (
+                            <td key={si} style={{ minWidth:64, width:64, padding:"4px 2px", borderLeft:`1px solid ${isHoje ? T.vermelho+"60" : T.cinzaBorda}`, borderBottom:`1px solid ${T.cinzaBorda}`, background: isHoje ? T.vermelho+"08" : rowBg, verticalAlign:"middle" }}>
+                              {ativo && (
+                                <div style={{
+                                  height:32,
+                                  background: fase.cor || "#2E7D32",
+                                  opacity: fase.status==="concluida" ? 1 : 0.82,
+                                  borderRadius: inicio && fim ? 8 : inicio ? "8px 0 0 8px" : fim ? "0 8px 8px 0" : 0,
+                                  marginLeft: inicio ? 4 : 0,
+                                  marginRight: fim ? 4 : 0,
+                                  display:"flex",
+                                  alignItems:"center",
+                                  justifyContent:"center",
+                                }}>
+                                  {(inicio || fim) && <span style={{ fontSize:9, color:"#fff", fontWeight:800 }}>{fase.progresso||0}%</span>}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Rodapé */}
+          <div style={{ padding:"10px 20px", borderTop:`1px solid ${T.cinzaBorda}`, background:T.fundoCard, display:"flex", gap:20, alignItems:"center", flexShrink:0, flexWrap:"wrap" as any }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:T.cinza3 }}>
+              <div style={{ width:16, height:4, background:T.vermelho, borderRadius:2 }} />
+              Coluna vermelha = Hoje
+            </div>
+            <div style={{ fontSize:11, color:T.cinza3 }}>✅ {concluidas} concluída(s) · 🔄 {emAndamento} em andamento · ⏳ {fases.length - concluidas - emAndamento} pendente(s)</div>
+            <div style={{ fontSize:11, color:T.cinza3, marginLeft:"auto" }}>
+              {minData.toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})} → {maxData.toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})}
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <Modal titulo={editando ? "✏️ Editar Fase" : "📅 Nova Fase"} onFechar={() => { setModal(false); setEditando(null); setNova({ nome:"", inicio:"", fim:"", responsavel:"", cor:"#2E7D32", progresso:0 }); }}>
