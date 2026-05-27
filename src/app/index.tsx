@@ -1364,6 +1364,38 @@ function Cronograma({ usuario, onVoltar }) {
 // ─── PERFIL ────────────────────────────────────────────────
 const PLANO_LABEL: Record<string, string> = { gratis:"🪚 Grátis", autonomo:"🔨 Autônomo", mestre:"👑 Mestre" };
 
+function NotifToggle({ titulo, desc, defaultAtivo }: { titulo: string; desc: string; defaultAtivo: boolean }) {
+  const [ativo, setAtivo] = useState(defaultAtivo);
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:14, background:T.fundoCard, borderRadius:12, padding:"16px", marginBottom:10, border:`1px solid ${T.cinzaBorda}` }}>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:14, fontWeight:600, color:T.cinza1 }}>{titulo}</div>
+        <div style={{ fontSize:12, color:T.cinza3, marginTop:3 }}>{desc}</div>
+      </div>
+      <div onClick={() => setAtivo(p => !p)} style={{ width:48, height:26, borderRadius:13, background: ativo ? T.amarelo : T.cinzaBorda, cursor:"pointer", position:"relative", transition:"background 0.3s", flexShrink:0 }}>
+        <div style={{ position:"absolute", top:3, left: ativo ? 24 : 3, width:20, height:20, borderRadius:10, background:"#fff", transition:"left 0.3s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }} />
+      </div>
+    </div>
+  );
+}
+
+function FaqItem({ pergunta, resposta }: { pergunta: string; resposta: string }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div style={{ background:T.fundoCard, borderRadius:12, marginBottom:8, border:`1px solid ${T.cinzaBorda}`, overflow:"hidden" }}>
+      <div onClick={() => setAberto(p => !p)} style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
+        <span style={{ fontSize:14, fontWeight:600, color:T.cinza1, flex:1, paddingRight:10 }}>{pergunta}</span>
+        <span style={{ color:T.amarelo, fontSize:16, transition:"transform 0.3s", transform: aberto ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+      </div>
+      {aberto && (
+        <div style={{ padding:"12px 16px 14px", fontSize:13, color:T.cinza2, lineHeight:1.6, borderTop:`1px solid ${T.cinzaBorda}` }}>
+          {resposta}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
   const [tela, setTela]         = useState("menu"); // menu | editar | planos | notificacoes | ajuda | senha
   const [nome, setNome]         = useState(usuario.nome || "");
@@ -1592,20 +1624,9 @@ function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
           { titulo:"Tarefas atrasadas",     desc:"Lembrete de tarefas pendentes",          ativo:true  },
           { titulo:"Novidades do app",      desc:"Atualizações e novas funcionalidades",   ativo:false },
           { titulo:"Relatório semanal",     desc:"Resumo da semana por e-mail",            ativo:false },
-        ].map((item, i) => {
-          const [ativo, setAtivo] = useState(item.ativo);
-          return (
-            <div key={i} style={{ display:"flex", alignItems:"center", gap:14, background:T.fundoCard, borderRadius:12, padding:"16px", marginBottom:10, border:`1px solid ${T.cinzaBorda}` }}>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:14, fontWeight:600, color:T.cinza1 }}>{item.titulo}</div>
-                <div style={{ fontSize:12, color:T.cinza3, marginTop:3 }}>{item.desc}</div>
-              </div>
-              <div onClick={() => setAtivo(p=>!p)} style={{ width:48, height:26, borderRadius:13, background: ativo ? T.amarelo : T.cinzaBorda, cursor:"pointer", position:"relative", transition:"background 0.3s", flexShrink:0 }}>
-                <div style={{ position:"absolute", top:3, left: ativo ? 24 : 3, width:20, height:20, borderRadius:10, background:"#fff", transition:"left 0.3s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }} />
-              </div>
-            </div>
-          );
-        })}
+        ].map((item, i) => (
+          <NotifToggle key={i} titulo={item.titulo} desc={item.desc} defaultAtivo={item.ativo} />
+        ))}
         <div style={{ marginTop:20, padding:16, background:T.amareloC, borderRadius:12, fontSize:13, color:T.cinza2, lineHeight:1.6 }}>
           📧 Notificações por e-mail são enviadas para <strong>{usuario.email}</strong>
         </div>
@@ -1685,22 +1706,9 @@ function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
           { p:"Meus dados estão seguros?",        r:"Sim! Usamos Supabase com criptografia de ponta a ponta. Seus dados nunca são compartilhados com terceiros." },
           { p:"Posso usar sem internet na obra?", r:"O app funciona offline para visualizar tarefas. Quando voltar a internet, tudo sincroniza automaticamente." },
           { p:"Como cancelar minha assinatura?",  r:"Acesse Planos e Preços e clique em cancelar. Sem burocracia, sem multa. Seus dados ficam por 30 dias." },
-        ].map((faq, i) => {
-          const [aberto, setAberto] = useState(false);
-          return (
-            <div key={i} style={{ background:T.fundoCard, borderRadius:12, marginBottom:8, border:`1px solid ${T.cinzaBorda}`, overflow:"hidden" }}>
-              <div onClick={() => setAberto(p=>!p)} style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
-                <span style={{ fontSize:14, fontWeight:600, color:T.cinza1, flex:1, paddingRight:10 }}>{faq.p}</span>
-                <span style={{ color:T.amarelo, fontSize:16, transition:"transform 0.3s", transform: aberto ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
-              </div>
-              {aberto && (
-                <div style={{ padding:"0 16px 14px", fontSize:13, color:T.cinza2, lineHeight:1.6, borderTop:`1px solid ${T.cinzaBorda}`, paddingTop:12 }}>
-                  {faq.r}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        ].map((faq, i) => (
+          <FaqItem key={i} pergunta={faq.p} resposta={faq.r} />
+        ))}
 
         <div style={{ marginTop:20, textAlign:"center" }}>
           <div style={{ fontSize:13, color:T.cinza3, marginBottom:8 }}>Versão 1.0 BETA</div>
@@ -1966,18 +1974,44 @@ export default function App() {
   const [obraSel, setObraSel]           = useState(null);
   const [checando, setChecando]         = useState(true);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [showBanner, setShowBanner]     = useState(false);
+  const [showBanner, setShowBanner]       = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-      });
-      const onPrompt = (e: any) => { e.preventDefault(); setInstallPrompt(e); setShowBanner(true); };
-      window.addEventListener('beforeinstallprompt', onPrompt);
-      window.addEventListener('appinstalled', () => setShowBanner(false));
-      return () => { window.removeEventListener('beforeinstallprompt', onPrompt); };
+    if (typeof window === 'undefined') return;
+
+    // Registra service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
     }
+
+    // Não mostra banner se já está instalado em modo standalone
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         (window.navigator as any).standalone === true;
+    if (isStandalone) return;
+
+    // Não mostra se o usuário já dispensou
+    if (localStorage.getItem('pwa-dismissed')) return;
+
+    // Chrome/Android: evento nativo
+    const onPrompt = (e: any) => { e.preventDefault(); setInstallPrompt(e); setShowBanner(true); };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', () => {
+      setShowBanner(false);
+      localStorage.setItem('pwa-dismissed', '1');
+    });
+
+    // iOS/outros: mostra banner manual em mobile depois de 2s
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (isMobile) {
+      timer = setTimeout(() => setShowBanner(true), 2000);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -1993,11 +2027,16 @@ export default function App() {
   }, []);
 
   const handleInstall = async () => {
-    if (!installPrompt) return;
+    if (!installPrompt) { setShowInstallModal(true); return; }
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') setShowBanner(false);
+    if (outcome === 'accepted') { setShowBanner(false); localStorage.setItem('pwa-dismissed', '1'); }
     setInstallPrompt(null);
+  };
+
+  const dismissBanner = () => {
+    setShowBanner(false);
+    localStorage.setItem('pwa-dismissed', '1');
   };
 
   const carregarPerfil = async (user) => {
@@ -2033,12 +2072,44 @@ export default function App() {
     <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif", maxWidth:430, margin:"0 auto", minHeight:"100vh", background:T.fundo, display:"flex", flexDirection:"column" }}>
       {showBanner && (
         <div style={{ background:T.cinza1, color:"#fff", padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, zIndex:100, flexShrink:0 }}>
-          <span style={{ fontSize:13, fontWeight:600 }}>📱 Instale o ObraFácil na tela inicial!</span>
+          <span style={{ fontSize:13, fontWeight:600, flex:1 }}>📱 Toque aqui para instalar o app</span>
           <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-            <button onClick={handleInstall} style={{ background:T.amarelo, border:"none", borderRadius:8, padding:"6px 14px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Instalar</button>
-            <button onClick={() => setShowBanner(false)} style={{ background:"none", border:"none", color:"#AAA", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
+            <button onClick={handleInstall} style={{ background:T.amarelo, border:"none", borderRadius:8, padding:"6px 14px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              {installPrompt ? "Instalar" : "Como?"}
+            </button>
+            <button onClick={dismissBanner} style={{ background:"none", border:"none", color:"#AAA", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
           </div>
         </div>
+      )}
+      {showInstallModal && (
+        <Modal titulo="Instalar ObraFácil" onFechar={() => setShowInstallModal(false)}>
+          <div style={{ fontSize:15, fontWeight:700, color:T.cinza1, marginBottom:14 }}>📱 iPhone / iPad (Safari)</div>
+          {[
+            "Toque no botão Compartilhar (□↑) na barra inferior",
+            "Role e toque em \"Adicionar à Tela de Início\"",
+            "Confirme tocando em \"Adicionar\"",
+          ].map((step, i) => (
+            <div key={i} style={{ display:"flex", gap:12, marginBottom:10 }}>
+              <div style={{ width:24, height:24, borderRadius:12, background:T.amarelo, color:"#fff", fontWeight:700, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</div>
+              <div style={{ fontSize:13, color:T.cinza2, lineHeight:1.5, paddingTop:3 }}>{step}</div>
+            </div>
+          ))}
+          <div style={{ height:1, background:T.cinzaBorda, margin:"16px 0" }} />
+          <div style={{ fontSize:15, fontWeight:700, color:T.cinza1, marginBottom:14 }}>🤖 Android (Chrome)</div>
+          {[
+            "Toque nos três pontos ⋮ no canto superior direito",
+            "Toque em \"Adicionar à tela inicial\"",
+            "Confirme tocando em \"Adicionar\"",
+          ].map((step, i) => (
+            <div key={i} style={{ display:"flex", gap:12, marginBottom:10 }}>
+              <div style={{ width:24, height:24, borderRadius:12, background:T.cinza2, color:"#fff", fontWeight:700, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</div>
+              <div style={{ fontSize:13, color:T.cinza2, lineHeight:1.5, paddingTop:3 }}>{step}</div>
+            </div>
+          ))}
+          <div style={{ marginTop:8 }}>
+            <Btn onClick={() => setShowInstallModal(false)}>Entendido ✓</Btn>
+          </div>
+        </Modal>
       )}
       <div style={{ flex:1, overflowY:"auto" }}>
         {obraSel ? (
