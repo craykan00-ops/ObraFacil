@@ -7,13 +7,13 @@ import { useStripe } from "@stripe/stripe-react-native";
 import { Alert } from "react-native";
 
 // ── CONFIGURAÇÃO ──────────────────────────────────────────
-export const STRIPE_KEY = "pk_test_51TZR6OJurcE85L58G8OWGuEusUZNrG3da4GkJZdH3R41MHnbVQyNjp2XbkAVocVdj3FK3lyBpZxilpfpHsEYhWIq001dx17Neh";
+export const STRIPE_KEY = "pk_live_51TZR68FJt0Umuncs15fyJEn3zu76beSKAzNqloMLjSX1axhkNDFjYvekB6pp09Fu58j6Kxf0c8AeStP3hO3r6tZv008WhKNeZX";
 
 export const PLANOS = {
   autonomo: {
     nome:    "Plano Autônomo",
     preco:   "R$ 47/mês",
-    priceId: "price_1TZUWCJurcE85L58yJt335ho",
+    priceId: "price_1TZUEgFJt0Umuncs25n4DLJq",
     recursos: [
       "3 obras simultâneas",
       "Até 3 funcionários",
@@ -25,7 +25,7 @@ export const PLANOS = {
   mestre: {
     nome:    "Plano Mestre",
     preco:   "R$ 97/mês",
-    priceId: "price_1TZUWsJurcE85L58IlSTt906",
+    priceId: "price_1TZUFJFJt0UmuncsPpaqd4L4",
     recursos: [
       "Obras ilimitadas",
       "Até 15 funcionários",

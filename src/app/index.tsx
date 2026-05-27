@@ -1646,7 +1646,7 @@ function Perfil({ usuario, onLogout, onVoltar, onPlanoAtualizado }) {
             ))}
             {!plano.atual && (
               <button
-                onClick={() => assinar(plano.id === "autonomo" ? "price_1TZUWCJurcE85L58yJt335ho" : "price_1TZj9FJurcE85L58BNSZMVpO")}
+                onClick={() => assinar(plano.id === "autonomo" ? "price_1TZUEgFJt0Umuncs25n4DLJq" : "price_1TZUFJFJt0UmuncsPpaqd4L4")}
                 disabled={salvando}
                 style={{ width:"100%", marginTop:16, padding:"12px", border:"none", borderRadius:10, background: plano.destaque ? T.amarelo : T.cinza1, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", opacity: salvando ? 0.7 : 1 }}>
                 {salvando ? "⏳ Aguarde..." : "Assinar agora →"}
