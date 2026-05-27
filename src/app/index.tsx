@@ -1961,10 +1961,24 @@ function ObraDetalhe({ obra, onVoltar, usuario }) {
 
 // ─── APP ROOT ──────────────────────────────────────────────
 export default function App() {
-  const [usuario, setUsuario]   = useState(null);
-  const [aba, setAba]           = useState("dashboard");
-  const [obraSel, setObraSel]   = useState(null);
-  const [checando, setChecando] = useState(true);
+  const [usuario, setUsuario]           = useState(null);
+  const [aba, setAba]                   = useState("dashboard");
+  const [obraSel, setObraSel]           = useState(null);
+  const [checando, setChecando]         = useState(true);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [showBanner, setShowBanner]     = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+      const onPrompt = (e: any) => { e.preventDefault(); setInstallPrompt(e); setShowBanner(true); };
+      window.addEventListener('beforeinstallprompt', onPrompt);
+      window.addEventListener('appinstalled', () => setShowBanner(false));
+      return () => { window.removeEventListener('beforeinstallprompt', onPrompt); };
+    }
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1977,6 +1991,14 @@ export default function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') setShowBanner(false);
+    setInstallPrompt(null);
+  };
 
   const carregarPerfil = async (user) => {
     try {
@@ -2009,6 +2031,15 @@ export default function App() {
 
   return (
     <div style={{ fontFamily:"'Segoe UI',system-ui,sans-serif", maxWidth:430, margin:"0 auto", minHeight:"100vh", background:T.fundo, display:"flex", flexDirection:"column" }}>
+      {showBanner && (
+        <div style={{ background:T.cinza1, color:"#fff", padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, zIndex:100, flexShrink:0 }}>
+          <span style={{ fontSize:13, fontWeight:600 }}>📱 Instale o ObraFácil na tela inicial!</span>
+          <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+            <button onClick={handleInstall} style={{ background:T.amarelo, border:"none", borderRadius:8, padding:"6px 14px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Instalar</button>
+            <button onClick={() => setShowBanner(false)} style={{ background:"none", border:"none", color:"#AAA", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
+          </div>
+        </div>
+      )}
       <div style={{ flex:1, overflowY:"auto" }}>
         {obraSel ? (
           <ObraDetalhe obra={obraSel} onVoltar={() => setObraSel(null)} usuario={usuario} />
